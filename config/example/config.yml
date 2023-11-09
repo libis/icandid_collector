@@ -1,0 +1,22 @@
+---
+:base_url: 
+:testing: true
+:save_raw_data: true
+:source_records_base_dir: "/source_records/scopeArchiv"
+:source_records_dir: "/source_records/scopeArchiv/{{query_id}}/{{KYE}}/"
+:additional_dirs:
+  :rosetta_files_dir: "/source_records/rosetta/IE_XML//{{query_id}}/{{KYE}}/"
+:records_dir: "/records/scopeArchiv/{{query_id}}/new/{{date}}/"
+:source_file_name_pattern: "*_md.xml"
+:dir_based_on_datePublished: false
+:override_parsed_records: true
+:rule_set: RULE_SET_v1_0
+:recent_url: "{{base_url}}&from={{start_date}}&until={{end_date}}"
+:backlog_url: "{{base_url}}&from={{start_date}}&until={{end_date}}"
+:encode_query_value: false
+:tika_server: tika.example.be
+:status: ready
+:oracle: 
+  :username: 'USERNAME'
+  :password: 'PASSWORD'
+  :dbname: '//oracle.example.com:1556/EXAMPLE.example.be'

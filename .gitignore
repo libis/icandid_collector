@@ -1,6 +1,8 @@
 *.gem
 *.rbc
-/config
+/config/*
+!/config/config_example.cfg
+!/config/example
 /coverage/
 /InstalledFiles
 /pkg/
@@ -10,6 +12,8 @@
 /src/test/
 /tmp/
 notes.txt
+
+
 
 # Used by dotenv library to load environment variables.
 # .env

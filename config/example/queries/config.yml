@@ -1,0 +1,34 @@
+---
+:queries:
+- :query:
+    :value: example
+    :aggregation: ''
+    :id: example_query_0000001
+    :name: example_set
+    :desc: Documents from example database 1
+  :recent_records:
+    :start_date:
+    :last_run_update:
+  :backlog:
+    :start_date:
+    :end_date:
+    :current_process_date:
+    :completed:
+    :last_run_update:
+  :last_parsing_datetime: '2023-10-13T08:38:56Z'
+- :query:
+    :value: voorbeeld
+    :aggregation: ''
+    :id: example_query_0000001
+    :name: voorbeeld_set
+    :desc:  Documents from example database 2
+  :recent_records:
+    :start_date:
+    :last_run_update:
+  :backlog:
+    :start_date:
+    :end_date:
+    :current_process_date:
+    :completed: true
+    :last_run_update:
+  :last_parsing_datetime: '2023-10-13T08:38:56Z'
