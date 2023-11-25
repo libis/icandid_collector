@@ -1,28 +1,32 @@
 #encoding: UTF-8
 require 'yaml'
 require 'optparse'
+require 'mustache'
 
 module IcandidCollector 
 
   class Configs
 
-    attr_accessor :config, :query_config, :queries_to_parse, :retries, :ingest_data
+    attr_accessor :init_config, :config, :query_config, :queries_to_parse, :retries, :ingest_data
 
     def initialize( config: {}, root_path: ROOT_PATH, ingest_data: {} )
       
       @logger = Logger.new(STDOUT)
       @retries = 0
       @command_line_options = {}
+      @init_config = {}
 
-      #@config.path = config[:config_path]
+      @config_class = DataCollector::ConfigFile.clone
+      @config_class.path = config[:config_path]
 
-      @init_config = load_config_from_file( path: config[:config_path] , file: 'config.yml')
-      # @config.file = config[:config_file]
-      
+      @config_class.keys.each { |k|
+        @init_config[k] = @config_class[k]
+      }
+
       @query_config  = DataCollector::ConfigFile.clone
       @query_config.path = config[:query_config_path] ||  File.join(config[:config_path], 'queries')
       @queries_to_parse = {}
-      # @query_config.file = config[:query_config_file]
+
 
       @icandid_data = JSON.parse( File.read(File.join(root_path, './config/config.cfg')) , :symbolize_names => true)
       unless ingest_data.empty?
@@ -54,6 +58,16 @@ module IcandidCollector
 
     def load_config_from_file( path: './config', file: 'config.yml')
       YAML.load( File.read(File.join( path, file) ) )
+    end
+
+    def update_init_config(key_path: nil, value: nil)
+      key_path = key_path.split('.').map(&:to_sym)
+      last_key = key_path.pop() 
+      (@init_config.dig *key_path)[last_key] = value
+      
+      @config_class.keys.each { |k|
+        @config_class[k] = @init_config[k]
+      }
     end
 
     def command_line_options
@@ -132,6 +146,7 @@ module IcandidCollector
       unless @command_line_options[:query_config].nil?
           if File.exist?(@command_line_options[:query_config])
             @query_config.path = File.dirname(@command_line_options[:query_config])
+            @query_config.name = File.basename(@command_line_options[:query_config])
           else
             raise ("config #{@command_line_options[:query_config]} does not exist")
           end
@@ -145,13 +160,11 @@ module IcandidCollector
         @init_config[:source_file_name_pattern] = @command_line_options[:source_file_name_pattern] 
       end
 
-
       unless @command_line_options[:dest_dir].nil?
         @init_config[:records_dir] = @command_line_options[:dest_dir] 
       end
       
     end
-
 
     def get_queries_to_parse( )
       queries_to_parse = @query_config[:queries]
@@ -165,106 +178,53 @@ module IcandidCollector
       @queries_to_parse  = queries_to_parse
     end
 
-
     def update_config_with_query_data( query:{}, options:{})
-      @config[:source_records_dir]    = get_source_records_dir( options: options)
-      @config[:records_dir]           = get_records_dir( options: options)
-      @config[:additional_dirs]       = get_additional_dirs( options: options)     
-      @config[:last_parsing_datetime] = get_parsing_datetime( query: query )
-    end
-
-    def get_parsing_datetime( query:{} )
-      # puts  query[:last_parsing_datetime] 
-
-      # puts "get_parsing_datetime"      
-      # puts       @command_line_options[:last_parsing_datetime]
-      return Time.parse( @command_line_options[:last_parsing_datetime] ) unless  @command_line_options[:last_parsing_datetime].nil?
-      return Time.parse( query[:last_parsing_datetime] ) unless query[:last_parsing_datetime] .nil? ||query[:last_parsing_datetime].empty?
-      return Time.parse("2000/01/01")
-    end
-    
-
-    
-    def get_source_records_dir( options: {} )
-    source_records_dir = @init_config[:source_records_dir].clone()
-      if source_records_dir.nil?
-        raise ("source_records_dir missing. add it to config or as -s on commandline")
-      end
-      source_records_dir = get_dir( dir: source_records_dir, options: options )
-      return source_records_dir
-    end
-    
-    def get_records_dir( options: {} )
-      records_dir = @init_config[:records_dir].clone()
-      if records_dir.nil?
-        raise ("records_dir missing. add it to config or as -s on commandline")
-      end
-      records_dir = get_dir( dir: records_dir, options: options )
-      return records_dir
-    end
-
-
-    def get_parsing_datetime( options: {} )
-
-    pp "-------------------"
-    pp @init_config[
-
-      additional_dirs = @init_config[:additional_dirs].clone()
-      additional_dirs.map! { |d|
-          get_dir( dir: d, options: options )
-      }
-      additional_dirs
-    end
-   
-
-    def get_dir( dir: nil, options: {} )
+      @config = @config.map { |k, v| 
+        unless @init_config[k].nil?
+          v = @init_config[k].clone()
+        end
+        options[k] = v
+        [k, v]
+      }.to_h
       
-      if dir.nil?
-        raise ("dir is missing")
-      end
-
       if options[:date].nil?
         options[:date]  = Time.now.strftime("%Y/%m/%d")  
         if options[:collection_type] == "recent_records"
           options[:date]       = Time.now.strftime("%Y_%m/%d")  
         end
         if options[:collection_type] == "backlog"
-          options[:date] = "#{Time.now.strftime("%Y-%m-%d")}/backlog/#{  options[:query][:query][:backlog][:current_process_date].to_datetime.strftime("%Y_%m") }/"
+          options[:date] = "#{Time.now.strftime("%Y-%m-%d")}/backlog/#{  query[:backlog][:current_process_date].to_datetime.strftime("%Y_%m") }/"
         end
       end
 
-      dir = dir.gsub(/\{\{today\}\}/, Time.now.strftime("%Y/%m/%d"))
-      dir = dir.gsub(/\{\{year\}\}/, Time.now.strftime("%Y"))
-      dir = dir.gsub(/\{\{month\}\}/, Time.now.strftime("%m"))
-      dir = dir.gsub(/\{\{day\}\}/, Time.now.strftime("%d"))
-      dir = dir.gsub(/\{\{hour\}\}/, Time.now.strftime("%H"))
-      
-      dir.scan(/\{\{query_([^{}]*)\}\}/).each { |substitution|
-        substitution = substitution[0]
-        if @config[:query][:query][substitution.to_sym].nil?
-          raise ("Missing option \"#{ substitution }\" to substitute dir")
-        else
-          replace = I18n.transliterate(  @config[:query][:query][substitution.to_sym] ).delete(' ').delete('\'')
-          dir = dir.gsub(/\{\{query_#{substitution}\}\}/, replace )         
-        end
-      }
+      options[:today] = Time.now.strftime("%Y/%m/%d")
+      options[:year]  = Time.now.strftime("%Y")
+      options[:month] = Time.now.strftime("%m")
+      options[:day]   = Time.now.strftime("%d")
+      options[:hour]  = Time.now.strftime("%H")
+     
+      @config = JSON.parse( Mustache.render(JSON.generate(@config), options),  :symbolize_names => true)
+  
+      #@config[:source_records_dir]    = get_source_records_dir( options: options)
+      #@config[:records_dir]           = get_records_dir( options: options)
+      #@config[:additional_dirs]       = get_additional_dirs( options: options)     
 
-      dir.scan(/\{\{([^{}]*)\}\}/).each { |substitution|
-        substitution = substitution[0]
-        if  options[substitution.to_sym].nil?
-          raise ("Missing option \"#{ substitution }\" to substitute dir")
-        else
-          replace = I18n.transliterate( options[substitution.to_sym] ).delete(' ').delete('\'')
-          dir = dir.gsub(/\{\{#{substitution}\}\}/, replace )         
-        end       
-      }
-      return dir
+      @config[:last_parsing_datetime] = get_parsing_datetime( query: query )
+
     end
 
-
+    def get_parsing_datetime( query:{} )
+      # puts  query[:last_parsing_datetime] 
+      # puts "get_parsing_datetime"      
+      # puts  @command_line_options[:last_parsing_datetime]
+      return Time.parse( @command_line_options[:last_parsing_datetime] ) unless  @command_line_options[:last_parsing_datetime].nil?
+      return Time.parse( query[:last_parsing_datetime] ) unless query[:last_parsing_datetime] .nil? ||query[:last_parsing_datetime].empty?
+      return Time.parse("2000/01/01")
+    end
+  
     def update_query_config
       new_queries = @query_config[:queries].map { |q| 
-        new_q = @queries_to_parse.select { |ptop| ptop[:query][:id] == q[:query][:id] }.first
+        new_q = @queries_to_parse.select{ |ptop| ptop[:query][:id] == q[:query][:id] }.first
         unless new_q.nil?
           q = new_q
         end

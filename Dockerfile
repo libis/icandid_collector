@@ -28,6 +28,12 @@ COPY Gemfile ./
 RUN gem install bundler
 RUN bundle install
 
+# WORKDIR $APP_HOME/data_collector
+# RUN gem build data_collector.gemspec; gem install data_collector-0.36..gem
+
+WORKDIR $APP_HOME
+COPY src ./src
+
 #RUN npm i -g @walmartlabs/json-to-simple-graphql-schema
 #RUN npm i -g xml2js
 #RUN export NODE_PATH=/usr/lib/node_modules

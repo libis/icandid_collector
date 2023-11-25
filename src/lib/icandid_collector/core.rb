@@ -6,6 +6,8 @@ require 'timeout'
 
 require_relative 'utils'
 require_relative 'configs'
+require_relative 'input'
+require_relative 'output'
 
 =begin
 module IcandidCollector
