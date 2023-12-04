@@ -29,7 +29,7 @@ begin
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
     @logger.info ("Count for queries in : #{File.join( icandid_config.query_config.path , "config.yml") }")
 
-    icandid_config.queries_to_parse.each.with_index() do |query, index|
+    icandid_config.queries_to_process.each.with_index() do |query, index|
         json_count = []
         next_url = ""
         @logger.info ("Count records in backlog for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")

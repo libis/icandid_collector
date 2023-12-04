@@ -3,6 +3,8 @@ require 'data_collector'
 require "iso639"
 require_relative 'basic_schema'
 
+@tiktokusers = {}
+
 RULE_SET_v0_1 = {
     version: "0.1",
     rs_next_value: {
@@ -38,37 +40,34 @@ RULE_SET_v0_1 = {
         }
     },
     rs_records: {
-        records: { "@" => [ lambda { |d,o| 
-            
+        records: { "$.data." => [ lambda { |d,o| 
             out = DataCollector::Output.new
-            rules_ng.run(RULE_SET_v1_0[:rs_record], d, out, o)
+            rules_ng.run(RULE_SET_v0_1[:rs_record], d, out, o)
 
             if out[:record].nil?
                 pp d.keys
                 pp "MAYDAY_MAYDAY"
                 pp out
             end
-
-   
             out[:record]
 
         } ] }
     },
     rs_record: {
-        record: { "$.record" => lambda { |d,o| 
+        record: { "$.videos" => lambda { |d,o| 
 
             rdata = {}
 
             #pp d
             out = DataCollector::Output.new
-            rules_ng.run(RULE_SET_v1_0[:rs_id], d, out, o)
+            rules_ng.run(RULE_SET_v0_1[:rs_id], d, out, o)
             o[:id] = out[:id].first
 
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
             rdata.merge!(out[:basic_schema].to_h)
             out.clear
 
-            rules_ng.run(RULE_SET_v1_0[:rs_record_data], d, out, o)
+            rules_ng.run(RULE_SET_v0_1[:rs_record_data], d, out, o)
             rdata.merge!(out.data)
 
             if rdata[:inLanguage].nil?
@@ -80,96 +79,176 @@ RULE_SET_v0_1 = {
                     :alternateName => Iso639[langcode].alpha2
                 }
             end
-
-            
-            pp o[:config]
-            pp o[:config][:additional_dirs][:rosetta_files_dir]
-            
-
-
-            pp rdata[:rosettaLink] 
-
-
             rdata
 
             
         } }
     },
     rs_id:{
-        id:  {'$.identifier' =>  lambda { |d,o| 
-            if d.is_a?(Hash)
-                if d.has_key?("$text")
-                    if d["$text"].match(/^http:\/\/abs.lias.be/)
-                        d["$text"].gsub('http://abs.lias.be/Query/detail.aspx?ID=','')
-                    end
-                end
-            end
+        id:  {'$.id' =>  lambda { |d,o| 
+            d
         }}
     },
     
     rs_record_data: {
 
 =begin
-root@e1fc652d047f:/source_records/scopeArchiv/fotoalbums_query_0000001/SET1# cut -d '>' -f 1 * | sort -u |grep -v resolver
-<dc:date             => datePublished
-<dc:description      => description
-<dc:format
-<dc:identifier
-<dc:identifier xsi:type="dcterms:URI"   => identifier
-<dc:source           => isPartOf
-<dc:title            => name
-<dcterms:extent  ?????? 1 album 
-<dcterms:isPartOf    => isPartOf
-
-        {"record"=>
-            {"title"=>"Photo album of the 150 year jubilee celebrations of the Ursuline congregation of Tildonk",
-             "identifier"=>["BE/942855/2277/353", {"$text"=>"http://abs.lias.be/Query/detail.aspx?ID=1656793", "_xsi:type"=>"dcterms:URI"}],
-             "extent"=>"1 album",
-             "date"=>"1982",
-             "source"=>["Archives Ursulines (OSU) - Congregation of Tildonk", "BE/942855"],
-             "isPartOf"=>"http://abs.lias.be/Query/detail.aspx?ID=1628195",
-             "_xmlns:dc"=>"http://purl.org/dc/elements/1.1/",
-             "_xmlns:dcterms"=>"http://purl.org/dc/terms/",
-             "_xmlns:xsi"=>"http://www.w3.org/2001/XMLSchema-instance"}}
+  "like_count"=>22,
+ "music_id"=>7291785472958351362,
+ "username"=>"psbelgique",
+ "video_description"=>
+  "Nous sommes pour l’interdiction de la fessée et de toute forme de violence physique ou psychologique  envers les enfants, malheureusement le MR bloque.",
+ "hashtag_names"=>[],
+ "create_time"=>1700591646,
+ "id"=>7303985428648987936,
+ "region_code"=>"BE",
+ "share_count"=>0,
+ "view_count"=>6,
+ "voice_to_text"=>
+  "Est-ce qu'on a vraiment envie d'être le dernier pays d'Europe à euh. Ne pas interdire la violence comme méthode éducative ? Nous avons déposé 1 proposition justement pour interdire aux parents le recours systématique à la violence, qu'elle soit psychologique ou physique des parents envers leur enfant. Alors évidemment, dans la majorité, certains ne l'entendent pas de cette oreille. Il y a pas de majorité à l'heure actuelle pour le voter.",
+ "comment_count"=>1
 =end
 
-        description: '$.description',
-        name:        '$.title',
-        identifier:  {'$.identifier' =>  lambda { |d,o| 
-            if d.is_a?(String)
+        description: '$.voice_to_text',
+        name:        '$.video_description',
+        sender:     {'$.username' => lambda { |d,o| 
+
+            user = @tiktokusers[d]
+
+            if user.nil?
+                url = "https://open.tiktokapis.com/v2/research/user/info/?fields=display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count"
+                
+                options = {
+                    bearer_token: o[:auth][:bearer_token],
+                    method: o[:method],
+                    body:   JSON.generate( {"username": d } )
+                }
+   
+                icandid_input = IcandidCollector::Input.new( :icandid_config => @icandid_config )
+                user_data = icandid_input.collect_data_from_uri(url: url,  options: options )
+=begin
+{"data"=>
+  {"bio_description"=>
+    "Créons le monde de demain 🌍\n" +
+    "➕ Juste ⚖️ ➕ Solidaire 🤝 ➕ Durable 🌱\n" +
+    "#psbelgique",
+   "display_name"=>"Parti Socialiste 🌹🇧🇪",
+   "follower_count"=>9276,
+   "following_count"=>48,
+   "is_verified"=>false,
+   "likes_count"=>84782,
+   "video_count"=>339,
+   "avatar_url"=>
+    "https://p77-sign-va.tiktokcdn.com/tos-maliva-avt-0068/c3a9e517a0067754131a1a51399534ca~c5_168x168.jpeg?x-expires=1701432000&x-signature=2FFBehiAmlcnOszxhGXjfSwRVGo%3D"},
+ "error"=>
+  {"code"=>"ok",
+   "message"=>"",
+   "log_id"=>"202311291237181C7EF703CA61E7020BB9"}}
+=end
+                unless user_data.nil? || user_data["data"].nil? || user_data["error"]["code"] != "ok"
+                    user = { 
+                        :id         => d,
+                        :identifier => {
+                                :@type  => "PropertyValue",
+                                :name   => "verified",
+                                :@id    => "tiktok_verified_true",
+                                :value  => user_data["data"]["is_verified"]
+                            },
+                        :@type       => "Organization",
+                        :description => user_data["data"]["bio_description"],
+                        :name        => user_data["data"]["display_name"],
+                        :logo        => user_data["data"]["avatar_url"],
+                        :sameAs      => "https://www.tiktok.com/@#{d}",
+                        :memberOf    => {
+                            :@type => "OrganizationRole",
+                            :roleName => ["user"],
+                            :@id => "iCANDID_tiktok_PERSON_ORGANIZATION_ROLE_#{d.upcase}",
+                            :memberOf => {
+                                :@type => "Organization",
+                                :name => "TikTok",
+                                :@id => "iCANDID_ORGANIZATION_TIKTOK"
+                            }
+                        }
+                    } 
+                    if user_data["data"]["is_verified"]
+                        user[:roleName][:memberOf][:roleName] << "verified user"
+                    end
+=begin        
+                    # => count : It is a snapshots - date must be mentions if added to the data
+                    user_data["interactionStatistic"] = []
+                    unless d["likes_count"].nil?
+                        user_data["interactionStatistic"] <<  { 
+                            "@type": "InteractionCounter",
+                            "interactionType": "https://schema.org/LikeAction",
+                            "userInteractionCount": d["likes_count"]
+                        }
+                    end
+=end 
+
+                    @tiktokusers[d] = user
+                end                
+            end
+            user
+        }},
+        keywords:    '$.hashtag_names',
+        identifier:  {'@' =>  lambda { |d,o| 
+            unless d["music_id"].nil?
                 {
                     :@type => "PropertyValue",
-                    :@id   => "scopeArchiv_ref_code",
-                    :name  => "scopeArchiv Ref Code",
-                    :value => d
+                    :@id   => "music_id",
+                    :name  => "music_id",
+                    :value => d["music_id"]
                 }
             end
         }},
-        sameAs:  {'$.identifier' =>  lambda { |d,o| 
-            if d.is_a?(Hash)
-                if d.has_key?("$text")
-                    if d["$text"].match(/^http:\/\/abs.lias.be/)
-                        d["$text"]
-                    end
-                end
-            end
+        sameAs:  {'$' =>  lambda { |d,o| 
+            "https://www.tiktok.com/@#{d["username"]}/video/#{d["id"]}"
         }},
-        datePublished: {'$.date' =>  lambda { |d,o| 
-            if (d =~ /^[0-9?]{4}$/)
-                DateTime.parse("#{d}-1-1").strftime("%Y-%m-%d")
-            else
-                d
-            end
+        datePublished: {'$.create_time' =>  lambda { |d,o| 
+            Time.at(d).strftime("%Y-%m-%d")
         }},
-        isPartOf: { "@" =>  lambda { |d,o| 
+        associatedMedia: { "$.music_id" => lambda { |d,o| 
             {
-                :@type => "Collection",
-                :url => d['isPartOf'],
-                :name => d['source'].first,
-                :@id => d['isPartOf'].split(/\\/).last
+                :@type         => "AudioObject",
+                :@id           => "#{o[:prefixid]}_MEDIA_#{d}"
             }
         }},
-        inLanguage: { "$.language" =>  lambda { |d,o| 
+        interactionStatistic:  {'@' =>  lambda { |d,o| 
+            rdata = []
+            unless d["view_count"].nil?
+                rdata <<  { 
+                    "@type": "InteractionCounter",
+                    "interactionType": "https://schema.org/ViewAction",
+                    "userInteractionCount": d["view_count"]
+                }
+            end
+            unless d["like_count"].nil?
+                rdata <<  { 
+                    "@type": "InteractionCounter",
+                    "interactionType": "https://schema.org/LikeAction",
+                    "userInteractionCount": d["like_count"]
+                }
+            end
+            unless d["share_count"].nil?
+                rdata <<  { 
+                    "@type": "InteractionCounter",
+                    "interactionType": "https://schema.org/ShareAction",
+                    "userInteractionCount": d["share_count"]
+                }
+            end
+            unless d["comment_count"].nil?
+                rdata <<  { 
+                    "@type": "InteractionCounter",
+                    "interactionType": "https://schema.org/CommentAction",
+                    "userInteractionCount": d["comment_count"]
+                }
+            end            
+            rdata 
+        } },
+        locationCreated: { "$.region_code" =>  lambda { |d,o| 
+            d
+        }},
+        inLanguage: { "$" =>  lambda { |d,o| 
             unless Iso639[d].nil? || Iso639[d].alpha2.to_s.empty?
                 {
                     :@type         => "Language",
@@ -185,11 +264,6 @@ root@e1fc652d047f:/source_records/scopeArchiv/fotoalbums_query_0000001/SET1# cut
                     :@id => "und"
                 }
             end
-        }},
-
-       #  starts-with => @._resourceIdentifier
-        rosettaLink: {'$.source[?(@._resourceIdentifier =~ /^https:\/\/resolver\.libis\.be\/.*/i)]' =>  lambda { |d,o| 
-          d['_resourceIdentifier']
-        } }
+        }}
     } 
 }

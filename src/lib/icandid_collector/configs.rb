@@ -7,7 +7,7 @@ module IcandidCollector
 
   class Configs
 
-    attr_accessor :init_config, :config, :query_config, :queries_to_parse, :retries, :ingest_data
+    attr_accessor :init_config, :config, :query_config, :queries_to_process, :retries, :ingest_data
 
     def initialize( config: {}, root_path: ROOT_PATH, ingest_data: {} )
       
@@ -25,7 +25,7 @@ module IcandidCollector
 
       @query_config  = DataCollector::ConfigFile.clone
       @query_config.path = config[:query_config_path] ||  File.join(config[:config_path], 'queries')
-      @queries_to_parse = {}
+      @queries_to_process = {}
 
 
       @icandid_data = JSON.parse( File.read(File.join(root_path, './config/config.cfg')) , :symbolize_names => true)
@@ -38,7 +38,7 @@ module IcandidCollector
 
       end
       update_config_with_command_line_options()
-      get_queries_to_parse()
+      get_queries_to_process()
 
       @config = @init_config.clone
 
@@ -163,19 +163,22 @@ module IcandidCollector
       unless @command_line_options[:dest_dir].nil?
         @init_config[:records_dir] = @command_line_options[:dest_dir] 
       end
-      
+
     end
 
-    def get_queries_to_parse( )
-      queries_to_parse = @query_config[:queries]
+    def get_queries_to_process( )
+      queries_to_process = @query_config[:queries]
       unless @command_line_options[:query_id].nil?
         query_ids_to_parse = @command_line_options[:query_id].split(",")
-        queries_to_parse = @query_config[:queries].select { |q| query_ids_to_parse.include?(  q[:query][:id] ) }
-        if queries_to_parse.empty?
+        queries_to_process = @query_config[:queries].select { |q| query_ids_to_parse.include?(  q[:query][:id] ) }
+        if queries_to_process.empty?
           raise ("#{@command_line_options[:query_id]} does not exist in #{ @query_config.path }/config.cfg")
         end
       end
-      @queries_to_parse  = queries_to_parse
+      unless @command_line_options[:last_parsing_datetime].nil?
+        queries_to_process = queries_to_process.map { |q| q[:last_parsing_datetime] = @command_line_options[:last_parsing_datetime]; q  }
+      end
+      @queries_to_process  = queries_to_process
     end
 
     def update_config_with_query_data( query:{}, options:{})
@@ -196,6 +199,10 @@ module IcandidCollector
           options[:date] = "#{Time.now.strftime("%Y-%m-%d")}/backlog/#{  query[:backlog][:current_process_date].to_datetime.strftime("%Y_%m") }/"
         end
       end
+      if options[:records_dir_date].nil?
+        options[:records_dir_date] = Time.now.strftime("%Y/%m/%d")
+      end
+
 
       options[:today] = Time.now.strftime("%Y/%m/%d")
       options[:year]  = Time.now.strftime("%Y")
@@ -223,14 +230,16 @@ module IcandidCollector
     end
   
     def update_query_config
-      new_queries = @query_config[:queries].map { |q| 
-        new_q = @queries_to_parse.select{ |ptop| ptop[:query][:id] == q[:query][:id] }.first
-        unless new_q.nil?
-          q = new_q
-        end
-        q
-      }
-      @query_config[:queries] = new_queries
+      if @command_line_options[:last_parsing_datetime].nil?
+        new_queries = @query_config[:queries].map { |q| 
+          new_q = @queries_to_process.select{ |ptop| ptop[:query][:id] == q[:query][:id] }.first
+          unless new_q.nil?
+            q = new_q
+          end
+          q
+        }
+        @query_config[:queries] = new_queries
+      end
     end
 
   end

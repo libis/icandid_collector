@@ -8,6 +8,8 @@ module IcandidCollector
     attr_accessor :mail_to, :mail_from, :smtp_server
 
     def initialize( mail_to: ADMIN_MAIL_ADDRESS, mail_from: FROM_MAIL_ADDRESS, smtp_server: SMTP_SERVER)
+      @logger = Logger.new(STDOUT)
+      @logger.level = Logger::DEBUG
       @to_address = mail_to
       @from_address = mail_from
       @smtp_server = smtp_server

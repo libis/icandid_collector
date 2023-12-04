@@ -6,14 +6,14 @@ RULE_SET_BASIC_ICANDID = {
     version: "1.0",
     rs_basic_schema: {
         basic_schema: { "@" => lambda { |d,o| 
+
             unless Iso639[d["language"]].nil? || Iso639[d["language"]].alpha2.to_s.empty?
                 language = Iso639[d["language"]].alpha2
             else
                 language = o[:ingest_data][:metaLanguage]
             end
-
             {
-                :@id            => "#{o[:prefixid]}_#{o[:id]}",
+                :@id            => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{o[:id]}",
                 :@type          => o[:type],
                 :additionalType => "CreativeWork",
                 :isBasedOn      => {

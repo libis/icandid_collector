@@ -67,51 +67,72 @@ module IcandidCollector
     end
 
     def process_files( options: {} )
-  #    pp "--------------------------------------------"
-      config = @icandid_config.config()
+        config = @icandid_config.config()
       
-#      pp config
-
       if config[:rule_set].nil?
         raise "rule_set is required to parse file"
       end
+
+      files = get_files_to_parse()
 
       options[:config] =  @icandid_config.config()
       options[:ingest_data] =  @icandid_config.ingest_data()
 
       @logger.info ("Start parsing using rule_set: #{ config[:rule_set]}")
-      Dir["#{ config[:source_records_dir] }/#{ config[:source_file_name_pattern] }"].each_with_index do |source_file, index| 
+      files.each_with_index do |source_file, index| 
       
-        one_record_output = DataCollector::Output.new
+        parse_data( file: source_file, options: options, rule_set: config[:rule_set].constantize )
 
-        if config[:last_parsing_datetime].nil?
-          parse_data( file: source_file, options: options, rule_set: config[:rule_set].constantize )
-        else
-          if config[:last_parsing_datetime]  < File.mtime(source_file)
-            parse_data( file: source_file, options: options, rule_set: config[:rule_set].constantize )
-          end
-        end
-=begin
-        if output.raw[:records].is_a?(Array)
-          filename = "#{ output.raw[:records].first['@id']  }_#{ output.raw[:records].last['@id'] }.json"
-        else
-          filename = "#{ output.raw[:records]['@id']}.json"
-        end
-=end
         output.data[:records] = [output.data[:records]] unless output.data[:records].is_a?(Array)
+
+        one_record_output = DataCollector::Output.new
 
         output.data[:records].each do | data |
 
           data = data.with_indifferent_access
+ 
           one_record_output << data
           filename = "#{one_record_output['@id']}.json"
           destination = "file://#{ File.join(config[:records_dir], filename) }"
+
           one_record_output.to_uri( destination,  options)
+          one_record_output.clear
 
         end
       end    
     end 
 
+    def get_files_to_parse
+      @logger.debug ("Get files from: #{ @icandid_config.config[:source_records_dir] } ")
+     
+      select_files_from_source_records_dir(
+        source_records_dir:       @icandid_config.config[:source_records_dir],
+        source_file_name_pattern: @icandid_config.config[:source_file_name_pattern],
+        last_parsing_datetime:    @icandid_config.config[:query][:last_parsing_datetime] 
+      )
+    end
+
+    def select_files_from_source_records_dir(source_records_dir: nil, source_file_name_pattern: nil,  last_parsing_datetime: nil )
+      files = []
+      unless @icandid_config.config[:query][:last_parsing_datetime].nil?
+        last_parsing_datetime = Date.parse( @icandid_config.config[:query][:last_parsing_datetime] )
+      end
+
+      Dir["#{source_records_dir}/*"].each do |source_file| 
+        if File.directory?( source_file )
+          if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
+            files.concat select_files_from_source_records_dir( source_records_dir: source_file, source_file_name_pattern: source_file_name_pattern,  last_parsing_datetime: last_parsing_datetime )
+          end
+        else
+          if Regexp.new(source_file_name_pattern).match(source_file)
+            if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
+              files << source_file
+            end
+          end
+        end
+      end
+      files
+    end
 
     def parse_data( file: "", options: {}, rule_set: nil )
       begin

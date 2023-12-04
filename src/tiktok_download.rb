@@ -5,7 +5,7 @@ ROOT_PATH = File.join( File.dirname(__FILE__), '../')
 require 'icandid_collector'
 provider = 'tiktok'
 
-PROCESS_TYPE = "parser"
+PROCESS_TYPE = "download"
 
 ingestJson =  File.read(File.join(ROOT_PATH, "./config/#{provider}/ingest.cfg"))
 Dir[  File.join( ROOT_PATH,"src/rules/#{provider}_*.rb") ].each {|file| require file; }
@@ -15,7 +15,7 @@ INGEST_DATA = JSON.parse(ingestJson, :symbolize_names => true)
 def process_recent_queries(icandid_config)
     begin
 
-        icandid_config.queries_to_parse.each.with_index() do |query, index|
+        icandid_config.queries_to_process.each.with_index() do |query, index|
 
             start_processing = Date.today
             @logger.info ("Download records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
@@ -52,7 +52,7 @@ end
 def process_backlog_queries(icandid_config)
     begin
 
-        icandid_config.queries_to_parse.each.with_index() do |query, index|
+        icandid_config.queries_to_process.each.with_index() do |query, index|
 
             icandid_config.config[:query] = query    
            
@@ -84,7 +84,7 @@ def process_backlog_queries(icandid_config)
     end
 end
 
-def prepare_query(icandid_config: nil, query: nil, options: nil)
+def prepare_query(icandid_config: nil, query: nil, options: {})
     begin
 
         start_date = options[:start_date]
@@ -138,7 +138,7 @@ def prepare_query(icandid_config: nil, query: nil, options: nil)
 end
 
     
-def process_query(icandid_config: nil, query: nil, options: nil)
+def process_query(icandid_config: nil, query: nil, options: {})
     begin
 
         if icandid_config.config[ :rule_set].nil?
@@ -222,7 +222,7 @@ begin
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
     @logger.info ("Download for queries in : #{File.join( icandid_config.query_config.path , icandid_config.query_config.name) }")
     
-    icandid_config.queries_to_parse.map!.with_index() do |query, index|
+    icandid_config.queries_to_process.map!.with_index() do |query, index|
         query[:query][:value] = query[:query][:value].is_a?(String) ? JSON.parse(  query[:query][:value]  ) : query[:query][:value]
         query[:query][:value]["max_count"] = icandid_config.config[:records_per_page]
         query[:query][:value]["cursor"] = 0

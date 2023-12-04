@@ -36,9 +36,9 @@ begin
     # rule_set =  icandid_config.config[:rule_set].constantize unless  icandid_config.config[:rule_set].nil?
 
     # pp icandid_config.config
-    # pp icandid_config.queries_to_parse   
+    # pp icandid_config.queries_to_process   
 
-    icandid_config.queries_to_parse.each.with_index() do |query, index|
+    icandid_config.queries_to_process.each.with_index() do |query, index|
 
         @logger.info ("Paring records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
 
