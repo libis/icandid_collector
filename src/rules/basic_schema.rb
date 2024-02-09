@@ -7,6 +7,9 @@ RULE_SET_BASIC_ICANDID = {
     rs_basic_schema: {
         basic_schema: { "@" => lambda { |d,o| 
 
+            # https://www.w3.org/TR/json-ld/#advanced-context-usage
+            # https://github.com/schemaorg/schemaorg/issues/1905
+
             unless Iso639[d["language"]].nil? || Iso639[d["language"]].alpha2.to_s.empty?
                 language = Iso639[d["language"]].alpha2
             else
