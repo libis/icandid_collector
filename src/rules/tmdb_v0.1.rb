@@ -57,7 +57,10 @@ RULE_SET_v0_1 = {
             rules_ng.run(RULE_SET_v0_1[:rs_record_data], d, out, o)
             rdata.merge!(out.data)
 
-            rdata[:contributor].uniq! { |c|  c[:name] }
+            if rdata[:contributor].is_a?(Array)
+                rdata[:contributor].uniq! { |c|  c[:name] } 
+            end
+            
             rdata[:creator] = rdata[:author] 
             
 =begin
@@ -124,7 +127,6 @@ RULE_SET_v0_1 = {
             d
         }}
     },
-    
     rs_record_data: {
         name:   '$.original_title', 
         alternateName:  {'$.alternative_titles.titles' =>  lambda { |d,o| 
@@ -223,8 +225,11 @@ RULE_SET_v0_1 = {
             "https://www.themoviedb.org/movie/#{d["id"]}" # -star-wars" ???
         }},
         datePublished: {'$.release_date' =>  lambda { |d,o| 
-            Time.parse(d).strftime("%Y-%m-%d")
+            unless d.empty?
+                Time.parse(d).strftime("%Y-%m-%d")
+            end
         }},
+
         releasedEvent:{'$.release_dates.results' =>  lambda { |d,o| 
 =begin        
 # Can be activated later

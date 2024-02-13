@@ -49,6 +49,7 @@ RULE_SET_v0_1 = {
                 pp "MAYDAY_MAYDAY"
                 pp out
             end
+            
             out[:record]
 
         } ] }
@@ -69,6 +70,8 @@ RULE_SET_v0_1 = {
 
             rules_ng.run(RULE_SET_v0_1[:rs_record_data], d, out, o)
             rdata.merge!(out.data)
+
+            rdata[:creator] = rdata[:author] = rdata[:sender] 
 
             if rdata[:inLanguage].nil?
                 langcode = rdata["@context"].select{ |e| e.is_a?(Hash) && e.has_key?("@language") }[0]["@language"]
@@ -109,9 +112,9 @@ RULE_SET_v0_1 = {
  "comment_count"=>1
 =end
 
-        description: '$.voice_to_text',
-        name:        '$.video_description',
-        sender:     {'$.username' => lambda { |d,o| 
+        text:   '$.voice_to_text',
+        name:   '$.video_description',
+        sender: {'$.username' => lambda { |d,o| 
 
             user = @tiktokusers[d]
 

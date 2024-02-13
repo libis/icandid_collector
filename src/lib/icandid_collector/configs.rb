@@ -144,9 +144,13 @@ module IcandidCollector
       end
 
       unless @command_line_options[:query_config].nil?
+
           if File.exist?(@command_line_options[:query_config])
             @query_config.path = File.dirname(@command_line_options[:query_config])
             @query_config.name = File.basename(@command_line_options[:query_config])
+
+            pp File.dirname(@command_line_options[:query_config])
+            pp File.basename(@command_line_options[:query_config])
           else
             raise ("config #{@command_line_options[:query_config]} does not exist")
           end
@@ -163,7 +167,6 @@ module IcandidCollector
       unless @command_line_options[:dest_dir].nil?
         @init_config[:records_dir] = @command_line_options[:dest_dir] 
       end
-
     end
 
     def get_queries_to_process( )
@@ -178,6 +181,7 @@ module IcandidCollector
       unless @command_line_options[:last_parsing_datetime].nil?
         queries_to_process = queries_to_process.map { |q| q[:last_parsing_datetime] = @command_line_options[:last_parsing_datetime]; q  }
       end
+
       @queries_to_process  = queries_to_process
     end
 

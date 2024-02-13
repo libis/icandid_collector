@@ -17,6 +17,7 @@ RULE_SET_v1_0 = {
                 pp out
             end
 
+   
             out[:record]
 
         } ] }
@@ -48,8 +49,10 @@ RULE_SET_v1_0 = {
                 }
             end
 
-            pp o
-
+            
+            pp o[:config]
+            pp o[:config][:additional_dirs][:rosetta_files_dir]
+            
 
 
             pp rdata[:rosettaLink] 

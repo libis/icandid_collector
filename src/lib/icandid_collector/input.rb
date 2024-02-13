@@ -8,7 +8,7 @@ module IcandidCollector
 
     def initialize( icandid_config: {} )
       @logger = Logger.new(STDOUT)
-      @logger.level = Logger::INFO
+      @logger.level = Logger::DEBUG
       @icandid_config = icandid_config
     end
 
@@ -88,16 +88,16 @@ module IcandidCollector
         one_record_output = DataCollector::Output.new
 
         output.data[:records].each do | data |
+          unless data.nil?
+            data = data.with_indifferent_access
+  
+            one_record_output << data
+            filename = "#{one_record_output['@id']}.json"
+            destination = "file://#{ File.join(config[:records_dir], filename) }"
 
-          data = data.with_indifferent_access
- 
-          one_record_output << data
-          filename = "#{one_record_output['@id']}.json"
-          destination = "file://#{ File.join(config[:records_dir], filename) }"
-
-          one_record_output.to_uri( destination,  options)
-          one_record_output.clear
-
+            one_record_output.to_uri( destination,  options)
+            one_record_output.clear
+          end
         end
       end    
     end 
@@ -119,6 +119,7 @@ module IcandidCollector
       end
 
       Dir["#{source_records_dir}/*"].each do |source_file| 
+
         if File.directory?( source_file )
           if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
             files.concat select_files_from_source_records_dir( source_records_dir: source_file, source_file_name_pattern: source_file_name_pattern,  last_parsing_datetime: last_parsing_datetime )
