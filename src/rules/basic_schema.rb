@@ -31,10 +31,16 @@ RULE_SET_BASIC_ICANDID = {
                         :license  => o[:ingest_data][:dataset][:license]
                     }
                 },
-                :@context  => ["http://schema.org", { :@language => "#{ language }-#{ o[:ingest_data][:unicode_script]}" }]
+                :@context  => {
+                    :@vocab => "https://schema.org/",
+                    :@language => "#{ language }-#{ o[:ingest_data][:unicode_script]}",
+                    :prov => "https://www.w3.org/ns/prov#",
+                    :prov:wasAssociatedFor => {
+                        :@reverse => "prov:wasAssociatedWith"
+                    },
+                }
             }
         
         }}
     }
 }
-    
