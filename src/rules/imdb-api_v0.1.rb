@@ -293,26 +293,27 @@ RULE_SET_v0_1 = {
             end
         }},
         review: {'$.reviews' =>  lambda { |d,o|
-            
             if d.nil?
                 pp d
                 pp o
+                pp "something wrong with reviews"
+            else
+                {
+                    :@type => "review",
+                    :@id => "imbd_review_#{d["id"]}",
+                    :reviewBody => {
+                        :@value =>  d["content"],
+                        :@language => 'en-Latn'
+                    },
+                    :sameAs => d["reviewLink"],
+                    :author => {
+                        :@type => "person",
+                        :name => d["username"],
+                        :url => d["userUrl"]
+                    },
+                    :dateCreated => d["date"]
+                }
             end
-            {
-                :@type => "review",
-                :@id => "imbd_review_#{d["id"]}",
-                :reviewBody => {
-                    :@value =>  d["content"],
-                    :@language => 'en-Latn'
-                },
-                :sameAs => d["reviewLink"],
-                :author => {
-                    :@type => "person",
-                    :name => d["username"],
-                    :url => d["userUrl"]
-                },
-                :dateCreated => d["date"]
-            }
         }},
         associatedMedia: {'$.images.items' =>  lambda { |d,o| 
             {
