@@ -10,11 +10,15 @@ RULE_SET_BASIC_ICANDID = {
             # https://www.w3.org/TR/json-ld/#advanced-context-usage
             # https://github.com/schemaorg/schemaorg/issues/1905
 
-            unless Iso639[d["language"]].nil? || Iso639[d["language"]].alpha2.to_s.empty?
-                language = Iso639[d["language"]].alpha2
-            else
-                language = o[:ingest_data][:metaLanguage]
+            if Iso639[o[:ingest_data][:metaLanguage]].nil?
+                puts ""
+                puts ""
+                puts ""
+                pp "CHECK o[:ingest_data][:metaLanguage]: #{o[:ingest_data][:metaLanguage]}"
+                puts ""
+                exit
             end
+
             {
                 :@id            => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{o[:id]}",
                 :@type          => o[:type],
@@ -33,11 +37,11 @@ RULE_SET_BASIC_ICANDID = {
                 },
                 :@context  => {
                     :@vocab => "https://schema.org/",
-                    :@language => "#{ language }-#{ o[:ingest_data][:unicode_script]}",
+                    :@language => "#{ o[:ingest_data][:metaLanguage] }-#{ o[:ingest_data][:unicode_script]}",
                     :prov => "https://www.w3.org/ns/prov#",
-                    :prov:wasAssociatedFor => {
+                    :"prov:wasAssociatedFor" => {
                         :@reverse => "prov:wasAssociatedWith"
-                    },
+                    }
                 }
             }
         

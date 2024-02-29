@@ -142,13 +142,13 @@ RULE_SET_v0_1 = {
         keywords:  { '$.keywords.keywords' =>  lambda { |d,o|
             {
                 :@value => d['name'],
-                :@langauge => 'en-Latn'
+                :@language => 'en-Latn'
             }
         }},
         genre: {'$.genres' =>  lambda { |d,o| 
             {
                 :@value => d['name'],
-                :@langauge => 'en-Latn'
+                :@language => 'en-Latn'
             }
         }},
         description:  '$.overview',
@@ -268,7 +268,7 @@ RULE_SET_v0_1 = {
                 :@id => "tmdb_review_#{d["id"]}",
                 :reviewBody => {
                     :@value =>  d["content"],
-                    :@langauge => 'en-Latn'
+                    :@language => 'en-Latn'
                 },
                 :sameAs => d["url"],
                 :author => {
