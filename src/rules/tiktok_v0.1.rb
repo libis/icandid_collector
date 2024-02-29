@@ -74,7 +74,7 @@ RULE_SET_v0_1 = {
             rdata[:creator] = rdata[:author] = rdata[:sender] 
 
             if rdata[:inLanguage].nil?
-                langcode = rdata["@context"].select{ |e| e.is_a?(Hash) && e.has_key?("@language") }[0]["@language"]
+                langcode = rdata["@context"]["@language"]
                 rdata[:inLanguage] =  {
                     :@type         => "Language",
                     :@id           => Iso639[langcode].alpha2,
@@ -173,8 +173,9 @@ RULE_SET_v0_1 = {
                             }
                         }
                     } 
+
                     if user_data["data"]["is_verified"]
-                        user[:roleName][:memberOf][:roleName] << "verified user"
+                        user[:memberOf][:roleName] << "verified user"
                     end
 =begin        
                     # => count : It is a snapshots - date must be mentions if added to the data
