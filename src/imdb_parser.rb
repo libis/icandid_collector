@@ -3,7 +3,7 @@ $LOAD_PATH << '.' << './lib' << "#{File.dirname(__FILE__)}" << "#{File.dirname(_
 ROOT_PATH = File.join( File.dirname(__FILE__), '../')
 
 require 'icandid_collector'
-provider = 'TMDB'
+provider = 'IMDB-API'
 
 PROCESS_TYPE = "parser"
 
@@ -14,7 +14,7 @@ INGEST_DATA = JSON.parse(ingestJson, :symbolize_names => true)
 
 def parse_recent_queries( options: {})
     options = { 
-        date: "????",
+        date: "????_??",
         collection_type: "recent"
     }
     parse_queries(options: options)
@@ -67,7 +67,7 @@ begin
     start_processing =  Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     @logger = Logger.new(STDOUT)
-    @logger.level = Logger::ERROR
+    @logger.level = Logger::DEBUG
     @total_nr_parsed_records = 0    
     @icandid_utils  = IcandidCollector::Utils.new()
 
@@ -77,9 +77,9 @@ begin
 
     @icandid_config = IcandidCollector::Configs.new( :config => config , :ingest_data => INGEST_DATA) 
     
-    @logger.info ("Start downloading using config: #{ File.join( config[:config_path] , "config.yml") }")
+    @logger.info ("Start parsing using config: #{ File.join( config[:config_path] , "config.yml") }")
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    @logger.info ("Download for queries in : #{File.join( @icandid_config.query_config.path , @icandid_config.query_config.name) }")
+    @logger.info ("Parsing for queries in : #{File.join( @icandid_config.query_config.path , @icandid_config.query_config.name) }")
     
     @icandid_config.queries_to_process.map! do |query|
            query
