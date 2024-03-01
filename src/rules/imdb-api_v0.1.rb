@@ -130,7 +130,7 @@ RULE_SET_v0_1 = {
         name:   '$.title', 
         alternateName:  [
             {'$.originalTitle' =>  lambda { |d,o| 
-                unless d.empty?
+                unless d.nil? || d.empty?
                     out = DataCollector::Output.new
                     rules_ng.run(RULE_SET_LANGUAGE_SCRIPT[:rs_detect_language_script], d, out, o)
                     {
@@ -140,7 +140,7 @@ RULE_SET_v0_1 = {
                 end
             }},
             {'$.fullTitle' =>  lambda { |d,o| 
-                unless d.empty?
+                unless d.nil? || d.empty?
                     out = DataCollector::Output.new
                     rules_ng.run(RULE_SET_LANGUAGE_SCRIPT[:rs_detect_language_script], d, out, o)
                     {
@@ -293,11 +293,7 @@ RULE_SET_v0_1 = {
             end
         }},
         review: {'$.reviews' =>  lambda { |d,o|
-            if d.nil?
-                pp d
-                pp o
-                pp "something wrong with reviews"
-            else
+            unless d.nil? || d.empty? 
                 {
                     :@type => "review",
                     :@id => "imbd_review_#{d["id"]}",
@@ -323,14 +319,16 @@ RULE_SET_v0_1 = {
             }
         }},
         trailer: {'$.trailer' =>  lambda { |d,o| 
-            {
-                :@type => "VideoObject",
-                :name => d["fullTitle"],
-                :description => d["videoDescription"],
-                :thumbnailUrl => d["thumbnailUrl"],
-                :url => d["link"],
-                :embedUrl => d["linkEmbed"]
-            }
+            unless d.nil? || d.empty?
+                {
+                    :@type => "VideoObject",
+                    :name => d["fullTitle"],
+                    :description => d["videoDescription"],
+                    :thumbnailUrl => d["thumbnailUrl"],
+                    :url => d["link"],
+                    :embedUrl => d["linkEmbed"]
+                }
+            end
         }}
     } 
 }
