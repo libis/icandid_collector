@@ -179,11 +179,11 @@ RULE_SET_v0_1 = {
         actor:  {'$.actorList' =>  lambda { |d,o| 
             {
                 :@type => "PerformanceRole",
-                :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{d["id"]}",
-                :url => "https://www.imdb.com/name/#{d["id"]}",
                 :actor => {
                     :@type => "Person",
-                    :name => d["name"]
+                    :name => d["name"],
+                    :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{d["id"]}",
+                    :url => "https://www.imdb.com/name/#{d["id"]}"
                 },
                 :characterName => d["asCharacter"]
             }
@@ -211,7 +211,7 @@ RULE_SET_v0_1 = {
                     {
                         :@type => "Person",
                         :name => p["name"],
-                        :url => "https://www.imdb.com/name/#{d["id"]}",
+                        :url => "https://www.imdb.com/name/#{p["id"]}",
                         :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
                     }
                 }
@@ -223,7 +223,7 @@ RULE_SET_v0_1 = {
                     {
                         :@type => "Person",
                         :name => p["name"],
-                        :url => "https://www.imdb.com/name/#{d["id"]}",
+                        :url => "https://www.imdb.com/name/#{p["id"]}",
                         :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
                     }
                 }
@@ -237,7 +237,7 @@ RULE_SET_v0_1 = {
                 {
                     :@type => "Person",
                     :name => p["name"],
-                    :url => "https://www.imdb.com/name/#{d["id"]}",
+                    :url => "https://www.imdb.com/name/#{p["id"]}",
                     :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
                 }
             }
@@ -249,7 +249,7 @@ RULE_SET_v0_1 = {
                     {
                         :@type => "Person",
                         :name => p["name"],
-                        :url => "https://www.imdb.com/name/#{d["id"]}",
+                        :url => "https://www.imdb.com/name/#{p["id"]}",
                         :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
                         :hasOccupation => {
                             :@type => "Occupation",
@@ -295,18 +295,19 @@ RULE_SET_v0_1 = {
         review: {'$.reviews' =>  lambda { |d,o|
             unless d.nil? || d.empty? 
                 {
-                    :@type => "review",
-                    :@id => "imbd_review_#{d["id"]}",
+                    :@type => "Review",
+                    :@id => "imbd_review_#{d["reviewLink"].split('/').last}",
                     :reviewBody => {
                         :@value =>  d["content"],
                         :@language => 'en-Latn'
                     },
                     :sameAs => d["reviewLink"],
                     :author => {
-                        :@type => "person",
+                        :@type => "Person",
                         :name => d["username"],
                         :url => d["userUrl"]
                     },
+                    :name => d["title"],
                     :dateCreated => d["date"]
                 }
             end

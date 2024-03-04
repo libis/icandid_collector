@@ -60,9 +60,7 @@ RULE_SET_v0_1 = {
             if rdata[:contributor].is_a?(Array)
                 rdata[:contributor].uniq! { |c|  c[:name] } 
             end
-            
-            rdata[:creator] = rdata[:author] 
-            
+                       
 =begin
  ["adult",   ==>>> https://schema.org/contentRating
  "backdrop_path",
@@ -109,7 +107,8 @@ RULE_SET_v0_1 = {
 =end
  
             if rdata[:inLanguage].nil?
-                langcode = rdata["@context"].select{ |e| e.is_a?(Hash) && e.has_key?("@language") }[0]["@language"]
+                #langcode = rdata["@context"].select{ |e| e.is_a?(Hash) && e.has_key?("@language") }[0]["@language"]
+                langcode = rdata["@context"]["@language"]
                 rdata[:inLanguage] =  {
                     :@type         => "Language",
                     :@id           => Iso639[langcode].alpha2,
@@ -264,7 +263,7 @@ RULE_SET_v0_1 = {
         }},
         review: {'$.reviews.results' =>  lambda { |d,o| 
             {
-                :@type => "review",
+                :@type => "Review",
                 :@id => "tmdb_review_#{d["id"]}",
                 :reviewBody => {
                     :@value =>  d["content"],
@@ -272,10 +271,11 @@ RULE_SET_v0_1 = {
                 },
                 :sameAs => d["url"],
                 :author => {
-                    :@type => "person",
+                    :@type => "Person",
                     :name => d["author"],
                     :alternateName => d["author_details"]["username"]
                 },
+                :name => "Review #{Date.parse(d["created_at"]).strftime('%d/%m/%Y')}",
                 :dateCreated => d["created_at"],
                 :dateModified => d["updated_at"],
             }

@@ -91,7 +91,7 @@ begin
     }
 
     parse_recent_queries(options: options)
-    parse_backlog_queries(options: options)
+#    parse_backlog_queries(options: options)
     
     @icandid_config.queries_to_process.map! do |query|
         query[:last_parsing_datetime] = start_processing
