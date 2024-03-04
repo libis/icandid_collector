@@ -75,6 +75,7 @@ module IcandidCollector
 
       files = get_files_to_parse()
 
+
       options[:config] =  @icandid_config.config()
       options[:ingest_data] =  @icandid_config.ingest_data()
 
@@ -132,7 +133,7 @@ module IcandidCollector
           end
         end
       end
-      files
+      files.uniq
     end
 
     def parse_data( file: "", options: {}, rule_set: nil )
@@ -149,7 +150,7 @@ module IcandidCollector
  #       pp data
  #       pp rule_set
 
-        @logger.debug(" options #{ options }")
+        # @logger.debug(" options #{ options }")
 
         #@logger.debug(" rules_ng.run #{ rule_set }")
         #puts rule_set
