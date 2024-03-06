@@ -276,8 +276,8 @@ RULE_SET_v0_1 = {
                     :alternateName => d["author_details"]["username"]
                 },
                 :name => "Review #{Date.parse(d["created_at"]).strftime('%d/%m/%Y')}",
-                :dateCreated => d["created_at"],
-                :dateModified => d["updated_at"],
+                :dateCreated => Time.parse(d["created_at"]).strftime("%Y-%m-%d"),
+                :dateModified => Time.parse(d["updated_at"]).strftime("%Y-%m-%d") 
             }
         }}
     } 

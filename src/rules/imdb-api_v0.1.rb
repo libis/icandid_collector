@@ -308,7 +308,8 @@ RULE_SET_v0_1 = {
                         :url => d["userUrl"]
                     },
                     :name => d["title"],
-                    :dateCreated => d["date"]
+                    :dateCreated => Time.parse(d["date"]).strftime("%Y-%m-%d")
+
                 }
             end
         }},
