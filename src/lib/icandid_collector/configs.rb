@@ -193,7 +193,8 @@ module IcandidCollector
         options[k] = v
         [k, v]
       }.to_h
-      
+
+
       if options[:date].nil?
         options[:date]  = Time.now.strftime("%Y/%m/%d")  
         if options[:collection_type] == "recent_records"
@@ -213,7 +214,7 @@ module IcandidCollector
       options[:month] = Time.now.strftime("%m")
       options[:day]   = Time.now.strftime("%d")
       options[:hour]  = Time.now.strftime("%H")
-     
+
       @config = JSON.parse( Mustache.render(JSON.generate(@config), options),  :symbolize_names => true)
   
       #@config[:source_records_dir]    = get_source_records_dir( options: options)
@@ -238,13 +239,28 @@ module IcandidCollector
         new_queries = @query_config[:queries].map { |q| 
           new_q = @queries_to_process.select{ |ptop| ptop[:query][:id] == q[:query][:id] }.first
           unless new_q.nil?
-            q = new_q
+            p = proc { |v1, v2| 
+              result = {}
+              v1.each do |k, v|
+                unless v2[k].nil?
+                  if v1[k].is_a?(Hash)
+                    v = p.call(v1[k],v2[k])
+                  else
+                    v = v2[k]
+                  end
+                end
+                result.store(k.to_sym, v)
+              end
+              result
+            }
+            q = p.call(q,new_q)
           end
           q
         }
         @query_config[:queries] = new_queries
       end
     end
+
 
   end
  
