@@ -161,14 +161,14 @@ def process_query(icandid_config: nil, query: nil, options: {})
 
         while (url)
 
-            options = {
+            input_options = {
                 bearer_token: icandid_config.config[:auth][:bearer_token],
                 method: icandid_config.config[:method],
                 body:   JSON.generate( query[:query][:value] )
             }
             
             icandid_input = IcandidCollector::Input.new( :icandid_config => icandid_config)
-            data = icandid_input.collect_data_from_uri(url: url,  options: options )
+            data = icandid_input.collect_data_from_uri(url: url,  options: input_options )
             
             output = DataCollector::Output.new
 
