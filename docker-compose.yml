@@ -1,8 +1,8 @@
 version: '3'
 services:
 
-  data_collector_dev:
-    image: data_collector_dev
+  icandid_collector_dev:
+    image: icandid_collector_dev
     build: 
       context: ./
       dockerfile: Dockerfile
@@ -14,10 +14,23 @@ services:
     volumes:
       - ./config:/app/config
       - ./src:/app/src
-      - ../records:/records
-      - ../records_test:/records_test
-      - ../source_records:/source_records
-      - ./logs:/app/logs
+      - ../../iCANDID/records:/records
+      - ../../iCANDID/records_test:/records_test
+      - ../../iCANDID/source_records:/source_records
+      - ../../iCANDID/icandid_collector/logs:/app/logs
+      - ./tom_vanmechelen/data_collector:/app/data_collector
+
+  icandid_collector:
+    build: 
+      context: ./
+      dockerfile: Dockerfile    
+    networks:
+      - data_network
+    volumes:
+      - ./config:/app/config
+      - ../../iCANDID/records:/records
+      - ../../iCANDID/source_records:/source_records
+      - ../../iCANDID/icandid_collector/logs:/app/logs
 
 
 networks:

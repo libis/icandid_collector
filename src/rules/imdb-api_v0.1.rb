@@ -182,7 +182,7 @@ RULE_SET_v0_1 = {
                 :actor => {
                     :@type => "Person",
                     :name => d["name"],
-                    :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{d["id"]}",
+                    :@id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{d["id"]}",
                     :url => "https://www.imdb.com/name/#{d["id"]}"
                 },
                 :characterName => d["asCharacter"]
@@ -194,7 +194,7 @@ RULE_SET_v0_1 = {
                 :@type => "Person",
                 :name => d["name"],
                 :url => "https://www.imdb.com/name/#{d["id"]}",
-                :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{d["id"]}"
+                :@id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{d["id"]}"
             }
         }},
         author:  {'$.writerList.' =>  lambda { |d,o| 
@@ -202,7 +202,7 @@ RULE_SET_v0_1 = {
                 :@type => "Person",
                 :name => d["name"],
                 :url => "https://www.imdb.com/name/#{d["id"]}",
-                :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{d["id"]}"
+                :@id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{d["id"]}"
             }
         }},
         editor:  {'$.fullCast.others' =>  lambda { |d,o| 
@@ -212,7 +212,7 @@ RULE_SET_v0_1 = {
                         :@type => "Person",
                         :name => p["name"],
                         :url => "https://www.imdb.com/name/#{p["id"]}",
-                        :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
+                        :@id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
                     }
                 }
             end
@@ -224,7 +224,7 @@ RULE_SET_v0_1 = {
                         :@type => "Person",
                         :name => p["name"],
                         :url => "https://www.imdb.com/name/#{p["id"]}",
-                        :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
+                        :@id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
                     }
                 }
             end
@@ -238,7 +238,7 @@ RULE_SET_v0_1 = {
                     :@type => "Person",
                     :name => p["name"],
                     :url => "https://www.imdb.com/name/#{p["id"]}",
-                    :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
+                    :@id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
                 }
             }
         end
@@ -250,7 +250,7 @@ RULE_SET_v0_1 = {
                         :@type => "Person",
                         :name => p["name"],
                         :url => "https://www.imdb.com/name/#{p["id"]}",
-                        :id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
+                        :@id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{p["id"]}",
                         :hasOccupation => {
                             :@type => "Occupation",
                             :name => d["job"]
@@ -262,8 +262,8 @@ RULE_SET_v0_1 = {
         productionCompany:  {'$.companyList' =>  lambda { |d,o| 
             #"logo": d["logo_path"]
             {
-                :@typ => "Organization",
-                :@id => "tmdb_organization_#{d["id"]}",
+                :@type => "Organization",
+                :@id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_organization_#{d["id"]}",
                 :name => d["name"]
             }
         }},
