@@ -33,7 +33,7 @@ Date: #{ now }
 
 END_OF_MESSAGE
 
-      Net::SMTP.start(@smtp_server, 25, tls_verify: false)
+      Net::SMTP.start(@smtp_server, 25, tls_verify: false)  do |smtp|
           smtp.send_message message,
           @from_address , @to_address
       end
