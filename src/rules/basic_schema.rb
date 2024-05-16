@@ -19,8 +19,43 @@ RULE_SET_BASIC_ICANDID = {
                 exit
             end
 
+            o[:uuid_generate] = {
+                url: "https://services6.libis.be/uuid/generate",
+                by: "icandid_tech@libis.kuleuven.be",
+                for: "icandid",
+                resolvable: "1"
+            }
+
+
+            id = "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{o[:id]}"
+            uuid = nil
+            url = nil
+
+            uuid_url = o[:uuid_generate][:url] +"/"+ id +"?by="+ o[:uuid_generate][:by] +"&for="+ o[:uuid_generate][:for] +"&resolvable="+ o[:uuid_generate][:resolvable]
+  
+            http = HTTP
+            uri = URI.decode_www_form_component("#{uuid_url.to_s}")
+
+            http_response = http.follow.get(uri.to_s, {})
+
+            data = JSON.parse( http_response.body.to_s )
+
+            case http_response.code
+            when 200..299
+                uuid = data
+                url = "https://icandid.libis.be/_/" + uuid
+            when 400
+                uuid = data["uuid"]
+                url = "https://icandid.libis.be/_/" + uuid
+            end
+
+ 
             {
-                :@id            => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{o[:id]}",
+
+
+                :@id            => id,
+                :@uuid          => uuid,
+                :url            => url,
                 :@type          => o[:type],
                 :additionalType => "CreativeWork",
                 :isBasedOn      => {
