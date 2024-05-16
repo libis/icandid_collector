@@ -11,6 +11,8 @@ services:
              tail -f /dev/null"
     networks: 
       - data_network
+    env_file:
+      - .env_collector
     volumes:
       - ./config:/app/config
       - ./src:/app/src

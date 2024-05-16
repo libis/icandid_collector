@@ -5,19 +5,28 @@ module IcandidCollector
   
   class Utils
     
-    attr_accessor :mail_to, :mail_from, :smtp_server
+    attr_accessor :icandid_config
 
-    def initialize( mail_to: ADMIN_MAIL_ADDRESS, mail_from: FROM_MAIL_ADDRESS, smtp_server: SMTP_SERVER)
+    def initialize( icandid_config: {} )
       @logger = Logger.new(STDOUT)
       @logger.level = Logger::DEBUG
-      @to_address = mail_to
-      @from_address = mail_from
-      @smtp_server = smtp_server
+      @icandid_config = icandid_config
     end
 
     def mailErrorReport (subject,  report , importance, config)
       now = DateTime.now
-  
+
+      unless ENV['SMTP_SERVER'] 
+        pp "-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-"
+        pp " No smtp-server configured"
+        pp "-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-"
+        exit
+      end
+
+      @smtp_server = ENV['SMTP_SERVER'] 
+      @from_address = ENV['FROM_MAIL_ADDRESS'] 
+      @to_address = ENV['ADMIN_MAIL_ADDRESS'] 
+
       message = <<END_OF_MESSAGE
 From: #{ @from_address }
 To: #{@to_address}
