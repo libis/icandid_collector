@@ -149,8 +149,8 @@ module IcandidCollector
             @query_config.path = File.dirname(@command_line_options[:query_config])
             @query_config.name = File.basename(@command_line_options[:query_config])
 
-            pp File.dirname(@command_line_options[:query_config])
-            pp File.basename(@command_line_options[:query_config])
+            # pp File.dirname(@command_line_options[:query_config])
+            # pp File.basename(@command_line_options[:query_config])
           else
             raise ("config #{@command_line_options[:query_config]} does not exist")
           end

@@ -82,6 +82,7 @@ module IcandidCollector
       @logger.info ("Start parsing using rule_set: #{ config[:rule_set]}")
       files.each_with_index do |source_file, index| 
       
+        # pp source_file
         parse_data( file: source_file, options: options, rule_set: config[:rule_set].constantize )
 
         output.data[:records] = [output.data[:records]] unless output.data[:records].is_a?(Array)
@@ -147,7 +148,8 @@ module IcandidCollector
         #output = DataCollector::Output.new
         data = input.from_uri("file://#{ file }", {} )
         
- #       pp data
+        options[:file] = file
+#        pp data
  #       pp rule_set
 
         # @logger.debug(" options #{ options }")
