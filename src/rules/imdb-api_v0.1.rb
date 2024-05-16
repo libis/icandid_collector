@@ -322,14 +322,16 @@ RULE_SET_v0_1 = {
         }},
         trailer: {'$.trailer' =>  lambda { |d,o| 
             unless d.nil? || d.empty?
-                {
-                    :@type => "VideoObject",
-                    :name => d["fullTitle"],
-                    :description => d["videoDescription"],
-                    :thumbnailUrl => d["thumbnailUrl"],
-                    :url => d["link"],
-                    :embedUrl => d["linkEmbed"]
-                }
+                unless d["link"].nil? &&  d["linkEmbed"].nil?
+                    {
+                        :@type => "VideoObject",
+                        :name => d["fullTitle"],
+                        :description => d["videoDescription"],
+                        :thumbnailUrl => d["thumbnailUrl"],
+                        :url => d["link"],
+                        :embedUrl => d["linkEmbed"]
+                    }
+                end
             end
         }}
     } 
