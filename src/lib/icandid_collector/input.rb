@@ -4,12 +4,13 @@ module IcandidCollector
 
   class Input
 
-    attr_accessor :icandid_config,  :raw
+    attr_accessor :icandid_config,  :raw, :total_nr_parsed_files
 
     def initialize( icandid_config: {} )
       @logger = Logger.new(STDOUT)
       @logger.level = Logger::DEBUG
       @icandid_config = icandid_config
+      @total_nr_parsed_files = 0
     end
 
     def collect_data_from_uri ( url: nil, options: {} )
@@ -81,10 +82,9 @@ module IcandidCollector
 
       @logger.info ("Start parsing using rule_set: #{ config[:rule_set]}")
       files.each_with_index do |source_file, index| 
-      
         # pp source_file
         parse_data( file: source_file, options: options, rule_set: config[:rule_set].constantize )
-
+        @total_nr_parsed_files =  @total_nr_parsed_files + 1
         output.data[:records] = [output.data[:records]] unless output.data[:records].is_a?(Array)
 
         one_record_output = DataCollector::Output.new

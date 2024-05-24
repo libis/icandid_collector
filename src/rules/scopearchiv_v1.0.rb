@@ -3,6 +3,10 @@ require 'data_collector'
 require "iso639"
 require_relative 'basic_schema'
 
+Dir[  File.join( ROOT_PATH,"src/rules/rosetta_*.rb") ].each {|file| require file; }
+
+ROSETTA_RULES = "ROSETTA_IIIF_RULES_1_0".constantize 
+
 RULE_SET_v1_0 = {
     version: "1.0",
     rs_records: {
@@ -17,7 +21,6 @@ RULE_SET_v1_0 = {
                 pp out
             end
 
-   
             out[:record]
 
         } ] }
@@ -27,7 +30,10 @@ RULE_SET_v1_0 = {
 
             rdata = {}
 
-            #pp d
+            # idee om de gegevens uit de bestanden van de rosetta export te halen ?
+            # pp o[:config]
+            # pp o[:config][:additional_dirs][:rosetta_files_dir]
+
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v1_0[:rs_id], d, out, o)
             o[:id] = out[:id].first
@@ -40,7 +46,7 @@ RULE_SET_v1_0 = {
             rdata.merge!(out.data)
 
             if rdata[:inLanguage].nil?
-                langcode = rdata["@context"].select{ |e| e.is_a?(Hash) && e.has_key?("@language") }[0]["@language"]
+                langcode = rdata["@context"]["@language"]
                 rdata[:inLanguage] =  {
                     :@type         => "Language",
                     :@id           => Iso639[langcode].alpha2,
@@ -48,19 +54,48 @@ RULE_SET_v1_0 = {
                     :alternateName => Iso639[langcode].alpha2
                 }
             end
-
+=begin
+            pp "ssssssssssssssssssssssss - scopeArchive rule output - ssssssssssssssssssssssss"
             
-            pp o[:config]
-            pp o[:config][:additional_dirs][:rosetta_files_dir]
-            
+            pp rdata.keys
+            pp rdata[:isPartOf]
+            pp rdata[:associatedMedia].size
+            pp rdata[:associatedMedia].map { |a| 
+                {
+                    type: a["associatedMedia"]["@type"],
+                    name: a["associatedMedia"]["name"],
+                    haspart: a["associatedMedia"]["hasPart"].map { |aa|
+                    {
+                        type: aa["@type"],
+                        url: aa["url"]
+                    }
+                }
+            }
+            }
+            pp "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss"
+            =end    
+        
 
-
-            pp rdata[:rosettaLink] 
+=begin            
+                { 
+                    id: a["@id"],
+                    type: a["@type"],
+                    associatedMedia: {
+                        name: a["associatedMedia"][:name],
+                        type: a["@type"],
+                        url: a["associatedMedia"][:url],
+                        hasPart: a["associatedMedia"][:hasPart].map { |aa|
+                            {
+                                type: aa["@type"],
+                                url: aa["url"]
+                            }
+                        }
+                    }
+                }
+=end                
 
 
             rdata
-
-            
         } }
     },
     rs_id:{
@@ -134,7 +169,7 @@ root@e1fc652d047f:/source_records/scopeArchiv/fotoalbums_query_0000001/SET1# cut
                 :@type => "Collection",
                 :url => d['isPartOf'],
                 :name => d['source'].first,
-                :@id => d['isPartOf'].split(/\\/).last
+                :@id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{d['isPartOf'].split('=').last}"
             }
         }},
         inLanguage: { "$.language" =>  lambda { |d,o| 
@@ -156,8 +191,67 @@ root@e1fc652d047f:/source_records/scopeArchiv/fotoalbums_query_0000001/SET1# cut
         }},
 
        #  starts-with => @._resourceIdentifier
-        rosettaLink: {'$.source[?(@._resourceIdentifier =~ /^https:\/\/resolver\.libis\.be\/.*/i)]' =>  lambda { |d,o| 
-          d['_resourceIdentifier']
+       associatedMedia: {'$.source[?(@._resourceIdentifier =~ /^https:\/\/resolver\.libis\.be\/.*/i)]' =>  lambda { |d,o| 
+            # Metadata from intellectual entity (example is: IE13673061 IE13097737 )
+            # https://resolver.libis.be/IE13673061/metadata => Rosetta data
+            # https://resolver.libis.be/IE13097737/metadata => Rosetta data
+            # https://repository.teneo.libis.be/oaiprovider/request?verb=GetRecord&identifier=oai:teneo.libis.be:IE13673061&metadataPrefix=oai_dc
+            #   => idDoesNotExist ? Not all Rosetta data is available through oai pmh
+            # https://repository.teneo.libis.be/oaiprovider/request?verb=GetRecord&identifier=oai:teneo.libis.be:IE13097737&metadataPrefix=oai_dc
+            # => idDoesNotExist ? Not all Rosetta data is available through oai pmh
+            # https://repository.teneo.libis.be/delivery/DeliveryManagerServlet?dps_pid=IE13673061&manifest=true => IIIF format
+            # https://repository.teneo.libis.be/delivery/DeliveryManagerServlet?dps_pid=IE13097737&manifest=true => IIIF format
+
+
+            icandid_input  = IcandidCollector::Input.new()
+            output = DataCollector::Output.new
+            begin
+
+                url = d['_resourceIdentifier'].gsub("representation","metadata")
+
+                url = "https://repository.teneo.libis.be/delivery/DeliveryManagerServlet?dps_pid=#{d['$text']}&manifest=true"
+
+#                url = "file:///source_records/rosetta/manifest-#{d['$text']}.json"
+
+                o[:id] = d['$text']
+
+                data = icandid_input.collect_data_from_uri(url:  url  ,  options: o )
+                rules_ng.run( ROSETTA_RULES[:rs_records], data, output, o )
+                rdata = output.data[:records]
+
+                # pp "-----------------------------------------"
+                # pp rdata
+                # pp "-----------------------------------------"
+                
+                # source_records_dir = o[:config][:query][:enrichment][:source_records_dir]
+
+                #output.data[:records][:hasPart].map{ |p| p[:@id] }.flatten.each { |rosetta_file_id|
+                #    pp rosetta_file_id.split("_").last
+                #    Dir["#{source_records_dir}/#{rosetta_file_id}*.json"].each do |enrichment_file| 
+                #        pp enrichment_file
+                #    end
+                #}
+
+#                pp "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+#                pp o[:config][:query][:enrichment][:source_records_dir]
+#                pp "ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"
+             
+                
+
+                # pp "-----------------------------------------"
+
+                # exit
+
+
+                # pp rdata[:isBasedOn]
+                
+                rdata.delete(:isBasedOn)
+            rescue StandardError => e
+                pp e
+                rdata = nil
+            end
+            
+            rdata
         } }
     } 
 }

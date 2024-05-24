@@ -33,7 +33,7 @@ COPY src ./src
 RUN ls -l /app/src/
 
 COPY ./tom_vanmechelen/data_collector ./data_collector
-RUN cd ./data_collector; gem build data_collector.gemspec; gem install data_collector-0.45.0.gem
+RUN cd ./data_collector; gem build data_collector.gemspec; gem install data_collector-0.51.0.gem
 
 
 

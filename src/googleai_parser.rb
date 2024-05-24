@@ -2,7 +2,7 @@
 $LOAD_PATH << '.' << './lib' << "#{File.dirname(__FILE__)}" << "#{File.dirname(__FILE__)}/lib"
 
 require 'icandid_collector'
-provider = 'scopeArchiv'
+provider = 'GoogleAI'
 
 PROCESS_TYPE = "parser"
 ROOT_PATH = File.join( File.dirname(__FILE__), '../')
@@ -26,7 +26,7 @@ begin
     icandid_config = IcandidCollector::Configs.new( :config => config , :ingest_data => INGEST_DATA) 
     icandid_utils  = IcandidCollector::Utils.new( :icandid_config => config) 
 
-    # pp icandid_config
+    #pp icandid_config
 
     # collector = IcandidCollector::Input.new( icandid_config.config ) 
     
@@ -44,6 +44,8 @@ begin
         @logger.info ("Paring records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
 
         icandid_config.config[:query] = query
+
+        icandid_config.config[:rule_set] = icandid_config.config[:query][:query][:rule_set]
             
         icandid_config.ingest_data[:dataset][:@id]  = query[:query][:id]
         icandid_config.ingest_data[:dataset][:name] = query[:query][:name].gsub(/_/," ").capitalize()
@@ -54,8 +56,7 @@ begin
         options = {
             :KYE => "**",
             :date => "**",
-            :prefixid => "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }",
-            :type => "CreativeWork"
+            :id => '{{id_from_file}}'
         }
 
         icandid_config.update_config_with_query_data( query: query, options: options )
@@ -74,10 +75,8 @@ begin
         icandid_input.process_files( options: options  )
 
         @total_nr_parsed_records = @total_nr_parsed_records + icandid_input.total_nr_parsed_files
-
+        
         query = icandid_config.config[:query]
-
-        #pp query
 
     end
     
