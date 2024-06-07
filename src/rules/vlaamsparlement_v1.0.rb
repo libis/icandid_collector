@@ -132,15 +132,15 @@ RULE_SET_v1_0 = {
                 }
             else    
                 rdata = {
-                    :@type => "Organisation",
-                    :@id   => "#{o[:@id]}_ORGANISATION_#{ o[:index] }",
+                    :@type => "Organization",
+                    :@id   => "#{o[:@id]}_ORGANIZATION_#{ o[:index] }",
                     :name  => d["naam"]
                 }
             end  
             if d["fractie"] 
                 rdata["memberOf"] = {
-                    :@type => "Organisation",
-                    :@id   => "#{o[:prefixid]}__ORGANISATION__id_#{d["fractie"]["id"] }",
+                    :@type => "Organization",
+                    :@id   => "#{o[:prefixid]}__ORGANIZATION__id_#{d["fractie"]["id"] }",
                     :name  => d["fractie"]["naam"]
                 }
             end

@@ -81,8 +81,8 @@ RULE_SET_v1_0 = {
             organ = o[:organ].select{ |org| d == org["kod"] }
             organ.map{ |org|
                 {
-                    :@type => "Organisation",
-                    :@id   => "#{o[:prefixid]}_ORGANISATION_#{ org["kod"]  }",
+                    :@type => "Organization",
+                    :@id   => "#{o[:prefixid]}_ORGANIZATION_#{ org["kod"]  }",
                     :name  => org["namn"],
                     :alternateName  => org["namn_en"],
                     :description  => org["beskrivning"]
@@ -152,8 +152,8 @@ RULE_SET_v1_0 = {
                 }
             else    
                 rdata = {
-                    :@type => "Organisation",
-                    :@id   => "#{o[:@id]}_ORGANISATION_#{ o[:index] }",
+                    :@type => "Organization",
+                    :@id   => "#{o[:@id]}_ORGANIZATION_#{ o[:index] }",
                     :name  => d["namn"]
                 }
             end  
@@ -162,8 +162,8 @@ RULE_SET_v1_0 = {
                 partibet = o[:organ].select { |org| org["kod"] == d["partibet"] }.first
                 unless partibet.nil?
                     rdata["memberOf"] = {
-                        :@type => "Organisation",
-                        :@id   => "#{o[:prefixid]}_ORGANISATION__id_parti_#{ d["partibet"]  }",
+                        :@type => "Organization",
+                        :@id   => "#{o[:prefixid]}_ORGANIZATION__id_parti_#{ d["partibet"]  }",
                         :name  => partibet["namn"],
                         :alternateName  => partibet["namn_en"],
                         :description  => partibet["beskrivning"]
