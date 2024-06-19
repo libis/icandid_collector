@@ -215,7 +215,7 @@ RULE_SET_v0_1 = {
         productionCompany:  {'$.production_companies' =>  lambda { |d,o| 
             #"logo": d["logo_path"]
             {
-                :@typ => "Organization",
+                :@type => "Organization",
                 :@id => "tmdb_organization_#{d["id"]}",
                 :name => d["name"]
             }
