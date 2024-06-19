@@ -14,7 +14,7 @@ INGEST_DATA = JSON.parse(ingestJson, :symbolize_names => true)
 
 def parse_recent_queries( options: {})
     options = { 
-        date: "????_??",
+        date: "**/*",
         collection_type: "recent"
     }
     parse_queries(options: options)
@@ -52,7 +52,7 @@ def parse_queries(options: {})
             @logger.info ("Start parsing query: #{ query[:query][:name] } ")
             @logger.info ("Start parsing source_records_dir: #{@icandid_config.config[:source_records_dir]} ")
             @logger.info ("Start parsing source_file_name_pattern: #{@icandid_config.config[:source_file_name_pattern]} ")
-
+            
             icandid_input.process_files( options: options  )
             @logger.info ("Start parsing next NEXT NEXT ")
 
@@ -92,7 +92,8 @@ begin
             "SOUND"=>"AudioObject",
             "VIDEO"=>"VideoObject",
             "3D"=>"3DModel"
-        }
+        },
+        date: "**/*"
     }
     parse_queries(options: options)
 #    parse_recent_queries(options: options)

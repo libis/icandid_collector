@@ -227,7 +227,10 @@ RULE_SET_v1_0 = {
             d["def"]
         }},
         publisher:{"$.dataProvider" => lambda { |d,o|
-            d
+            {
+                :@type => "Organization",
+                :name  => d
+            }
         }},
         isPartOf: [ 
             { "$.object.organizations" => lambda { |d,o|
