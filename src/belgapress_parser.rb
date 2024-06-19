@@ -3,7 +3,7 @@ $LOAD_PATH << '.' << './lib' << "#{File.dirname(__FILE__)}" << "#{File.dirname(_
 ROOT_PATH = File.join( File.dirname(__FILE__), '../')
 
 require 'icandid_collector'
-provider = 'tiktok'
+provider = 'BelgaPress'
 
 PROCESS_TYPE = "parser"
 
@@ -14,7 +14,7 @@ INGEST_DATA = JSON.parse(ingestJson, :symbolize_names => true)
 
 def parse_recent_queries( options: {})
     options = { 
-        date: "????",
+        date: "*/**",
         collection_type: "recent"
     }
     parse_queries(options: options)
@@ -36,8 +36,7 @@ def parse_queries(options: {})
             rule_set = @icandid_config.config[:rule_set].constantize 
         end
 
-        options[:type] = "message"
-
+        options[:type] = "NewsArticle"
 
         @icandid_config.queries_to_process.each do |query|
             @icandid_config.config[:query] = query
@@ -85,13 +84,6 @@ begin
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
     @logger.info ("Download for queries in : #{File.join( @icandid_config.query_config.path , @icandid_config.query_config.name) }")
     
-    @icandid_config.queries_to_process.map! do |query|
-        query[:query][:value] = query[:query][:value].is_a?(String) ? JSON.parse(  query[:query][:value]  ) : query[:query][:value]
-        query[:query][:value]["max_count"] = @icandid_config.config[:records_per_page]
-        query[:query][:value]["cursor"] = 0
-        query[:query][:value]["search_id"] = ""
-        query
-    end
 
     options = {
         prefixid: "#{@icandid_config.ingest_data[:prefixid]}_#{ @icandid_config.ingest_data[:provider][:@id].downcase }_#{ @icandid_config.ingest_data[:dataset][:@id].downcase }",
