@@ -11,6 +11,8 @@ module IcandidCollector
       @logger.level = Logger::DEBUG
       @icandid_config = icandid_config
       @total_nr_parsed_files = 0
+      @retries = 0
+      @number_of_retries = 0
     end
 
     def collect_data_from_uri ( url: nil, options: {} )
@@ -22,6 +24,12 @@ module IcandidCollector
         if options[:method].nil?
           options[:method] = "GET"
         end
+
+        @number_of_retries = 2
+        unless options[:number_of_retries].nil?
+          @number_of_retries = options[:number_of_retries]
+        end
+
         @raw = data = DataCollector::Core.input.from_uri(url, options)
         data
 
@@ -59,6 +67,19 @@ module IcandidCollector
             collect_data_from_uri(url: url,  options: options )
           else
             raise e.message
+          end
+        elsif  /^Unable to process received status code = 429/ =~ e.message
+          pp "@retries #{@retries}"
+          pp "number_of_retries #{@number_of_retries}"
+          if @retries < @number_of_retries
+            @retries += 1
+            @logger.error ("Wait 600 seconds and try Again ==> number_of_retries:#{@retry_count}")
+            sleep 600
+            collect_data_from_uri(url: url,  options: options )
+          else
+            @logger.error("429 Too Many Requests")
+            @logger.error( data )
+            raise "429 Too Many Requests"
           end
         else
           raise e.message
