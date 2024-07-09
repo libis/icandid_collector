@@ -70,9 +70,6 @@ def process_query(icandid_config: nil, query: nil, options: {})
     url = icandid_config.config[:sessions_url]
 
     while (url)
-
-
-
         
         @logger.info ("Start Download from url: #{ url } ")
 
@@ -98,12 +95,6 @@ def process_query(icandid_config: nil, query: nil, options: {})
                     icandid_config.update_config_with_query_data( query: query, options: input_options)
                     record_txt_url = icandid_config.config[:txt_url]
                     record_pdf_url = icandid_config.config[:pdf_url]
-
-                    pp "record_txt_url record_txt_url record_txt_url record_txt_url"
-                    pp record_txt_url
-
-                    pp "record_pdf_url record_pdf_url record_pdf_url record_pdf_url"
-                    pp record_pdf_url
 
                     unless record_txt_url.nil?
                         @logger.debug ("download #{record_txt_url} [txt] for #{d["id"]} ")
