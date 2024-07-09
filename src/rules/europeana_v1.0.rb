@@ -94,12 +94,12 @@ RULE_SET_v1_0 = {
         }}
     },
     rs_record_data: {
-        :identifier => {'$.guid'=>lambda { |d,o|
+        :identifier => {'$.id'=>lambda { |d,o|
             {
                 :@type  => "PropertyValue",
                 :name   => "Identification of the entity assigned by the provider",
-                :@id    => "orignal_provider_id",
-                :value  => d.split("?").first
+                :@id    => "original_provider_id",
+                :value  => d
             }
         }},
         inLanguage: { "$.language" =>  lambda { |d,o| 
@@ -136,11 +136,6 @@ RULE_SET_v1_0 = {
                 }
             }
             r
-        }},
-        _name: {"$.object.proxies..dcTitle" => lambda { |d,o|
-            out = DataCollector::Output.new
-            rules_ng.run(RULE_SET_v1_0[:rs_language_to_jsonld], d, out, o)
-            out[:data]
         }},
         description:{"$.dcDescriptionLangAware" => lambda { |d,o|
             out = DataCollector::Output.new
@@ -210,9 +205,15 @@ RULE_SET_v1_0 = {
                 :name => d
             }
         }},
-        sameAs:{"$.edmIsShownAt" => lambda { |d,o|
-            d
-        }},
+
+        sameAs:[ {"$.edmIsShownAt" => lambda { |d,o|
+                d
+            }}, 
+            {'$.guid'=>lambda { |d,o|
+                d.split("?").first
+            }}
+        ],
+
         associatedMedia:{"$" => lambda { |d,o|
             unless (d["edmIsShownBy"] == nil && d["edmPreview"] == nil )
                 {
@@ -259,6 +260,7 @@ RULE_SET_v1_0 = {
                 rdata
             }}
         ],
+        _aggregator: "$.provider",
         license:  [
             { "$.rights" => lambda { |d,o|
                 d
