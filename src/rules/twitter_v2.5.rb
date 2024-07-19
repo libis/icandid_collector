@@ -1,6 +1,9 @@
 #encoding: UTF-8
 require 'data_collector'
 require "iso639"
+require_relative 'basic_schema'
+
+DEBUG = false
 
 RULE_SET_v2_5 = {
     version: "2.5",
@@ -12,11 +15,15 @@ RULE_SET_v2_5 = {
     },
     rs_filename:{
         filename: { "$.meta" => lambda { |d,o| 
+            pp d["result_count"]
             unless ( d["result_count"] == 0)
                 "#{o[:query][:query][:id]}_#{d["oldest_id"]}_#{d["newest_id"]}.json"
             else
                 pp "meta data "
                 pp d
+                unless o[:query][:query][:user_name].nil?
+                    pp "https://twitter.com/search?q=%28from%3A#{o[:query][:query][:user_name]}%29+until%3A#{DateTime.parse(o[:query][:params][:end_date]).strftime("%Y-%m-%d")}+since%3A#{DateTime.parse(o[:query][:params][:start_date]).strftime("%Y-%m-%d")}+-filter%3Areplies"
+                end
                 pp "meta data "
                 nil
             end
@@ -31,10 +38,21 @@ RULE_SET_v2_5 = {
             d
             }]
         }
-    },        
+    },  
+    rs_id:{
+        id:  {'$.id' =>  lambda { |d,o| 
+            d 
+        }}
+    },      
     rs_records: {
         records: { "@" => lambda { |d,o|  
+            
+            pp "start records" if DEBUG
+
+            o[:prefixid] = "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }"
             o[:media] = {}
+
+            pp "start media" if DEBUG
             media = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_media], d, media, o)
             unless media[:media].nil?
@@ -43,6 +61,7 @@ RULE_SET_v2_5 = {
                 o[:media] = o[:media].map{ |e| [e[:@id], e] }.to_h
             end
 
+            pp "start places" if DEBUG
             o[:places] = {}
             places = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_places], d, places, o)
@@ -52,6 +71,7 @@ RULE_SET_v2_5 = {
                 o[:places] = o[:places].map{ |e| [e[:@id], e] }.to_h
             end
 
+            pp "start users" if DEBUG
             o[:users] = {}
             users = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_users], d, users, o)
@@ -61,7 +81,7 @@ RULE_SET_v2_5 = {
                 o[:users] = o[:users].map{ |e| [e[:@id], e] }.to_h
             end
 
-
+            pp "start uncludes_tweets" if DEBUG
             o[:includes_tweets] = {}
             includes_tweets = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_includes_tweets], d, includes_tweets, o)
@@ -70,7 +90,9 @@ RULE_SET_v2_5 = {
                 o[:includes_tweets] = [ o[:includes_tweets] ] unless o[:includes_tweets].kind_of?(Array)
                 o[:includes_tweets] = o[:includes_tweets].map{ |e| [e[:@id], e] }.to_h
             end
-            
+
+
+            pp "rules_ng.run(RULE_SET_v2_5[:rs_record] .. )" if DEBUG
             records = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_record], d, records, o)
             records[:records]
@@ -82,6 +104,7 @@ RULE_SET_v2_5 = {
             record = DataCollector::Output.new
             #out.clear          
             #haal data op
+            pp "rules_ng.run(RULE_SET_v2_5[:rs_data_tweets] .. )" if DEBUG
             rules_ng.run(RULE_SET_v2_5[:rs_data_tweets], d, record, o)
             record[:data] 
         } ] }
@@ -89,7 +112,7 @@ RULE_SET_v2_5 = {
 
     rs_data_tweets: {
         data: { "@" => [ lambda { |d,o|  
-
+            
 # Tweet object (d)
 # =begin
 # created_at             => publication_date
@@ -128,7 +151,7 @@ RULE_SET_v2_5 = {
 
             tweet = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_tweets], d, tweet, o)
-            rdata = tweet[:tweets].to_h
+            rdata = tweet[:tweets]
             # out.clear
 
             # Expand User
@@ -141,18 +164,15 @@ RULE_SET_v2_5 = {
                     rdata[:sender] = user
                 end
             end
-
             unless d["in_reply_to_user_id"].nil?
                 user = { :@id =>  "#{o[:prefixid]}_PERSON_#{d["in_reply_to_user_id"]}" }
                 unless o[:users].empty?
-                    #user = o[:users].select { |user| user[:@id] == "#{o[:prefixid]}_PERSON_#{d["in_reply_to_user_id"]}" }.first
+                    # user = o[:users].select { |user| user[:@id] == "#{o[:prefixid]}_PERSON_#{d["in_reply_to_user_id"]}" }.first
                     user = o[:users]["#{o[:prefixid]}_PERSON_#{d["in_reply_to_user_id"]}"]
                 end
                 rdata[:recipient ] = user
             end
             
-
-
             # Expand geo/location
             unless d["geo"].nil?
                 unless d["geo"]["place_id"].nil?
@@ -222,29 +242,32 @@ RULE_SET_v2_5 = {
             # Expand referenced_tweets
             ref_tweet = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_referenced_tweets], d, ref_tweet, o)
-            unless ref_tweet[:referenced_tweets].to_h[:identifier].nil?
-                rdata[:identifier].concat( ref_tweet[:referenced_tweets][:identifier] )
+
+            unless ref_tweet[:referenced_tweets].nil?
+                unless ref_tweet[:referenced_tweets][:identifier]
+                    rdata[:identifier].concat( ref_tweet[:referenced_tweets][:identifier] )
+                end
+                unless ref_tweet[:referenced_tweets][:text].nil?
+                    rdata[:text] = ( ref_tweet[:referenced_tweets][:text] )
+                end     
+                unless ref_tweet[:referenced_tweets][:citation].nil?
+                    rdata[:citation] = ( ref_tweet[:referenced_tweets][:citation] )
+                end             
             end
-            unless ref_tweet[:referenced_tweets].to_h[:text].nil?
-                rdata[:text] = ( ref_tweet[:referenced_tweets][:text] )
-            end     
-            unless ref_tweet[:referenced_tweets].to_h[:citation].nil?
-                rdata[:citation] = ( ref_tweet[:referenced_tweets][:citation] )
-            end             
             # out.clear
                     
             # Expand conversation
             conversation = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_conversation], d, conversation, o)
-            
-            unless conversation[:conversation].to_h.empty?
-                rdata[:identifier] << conversation[:conversation].to_h[:identifier] 
-                rdata[:isPartOf] = conversation[:conversation].to_h[:isPartOf] 
+ 
+            unless conversation[:conversation].nil?
+                rdata[:identifier] << conversation[:conversation][:identifier] 
+                rdata[:isPartOf] = conversation[:conversation][:isPartOf] 
             end
             # conversation.clear
 
-            # If it is a retweet; the user is not the creator of the message, is it only th sender ???              
-            retweet = rdata[:identifier].select { |i| i[:name] == "retweeted_tweet_id" }.first
+            # If it is a retweet; the user is not the creator of the message, is it only th sender ???  
+            retweet = rdata[:identifier].compact.select { |i| i[:name] == "retweeted_tweet_id" }.first
 
             unless retweet.nil?
                 tweet = o[:includes_tweets]["#{o[:prefixid]}_#{  retweet[:value]  }"]
@@ -265,53 +288,29 @@ RULE_SET_v2_5 = {
                 rdata[:author] = user unless user.nil?
                 rdata[:creator] = user unless user.nil?
             end
-=end            
+=end
 
             #"entities": { "user_mentions": [] }
             tweet_expands = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_mentions], d, tweet_expands, o)            
-            
+
             #"attachments": { "media_keys": [] }
             rules_ng.run(RULE_SET_v2_5[:rs_associated_media], d, tweet_expands, o)
-
             rdata.merge!(tweet_expands.to_h)
-
 
             rules_ng.run(RULE_SET_v2_5[:rs_urls], d, tweet_expands, o) 
             urls = tweet_expands[:urls]
-            urls = [urls] unless urls.is_a?(Array)
-            urls.sort_by! { |url| url["end"] }.reverse!
-            urls.each do |url| 
-                rdata[:text].insert( url["end"], " [#{url["expanded_url"]}]")
-            end
 
-            pp   rdata[:text]
+            unless urls.nil?
+                urls = [urls] unless urls.is_a?(Array)
+                urls.sort_by! { |url| url.to_h["end"] }.reverse!
+                urls.each do |url| 
+                    rdata[:text].insert( url["end"], " [#{url["expanded_url"]}]")
+                end
+            end
 
             rdata
         }]}
-    },
-    rs_basic_schema: {
-        basic_schema: { "@" => lambda { |d,o|  
-            {
-                :@id            => "#{o[:prefixid]}_#{d["id"]}",
-                :@type          => o[:type],
-                :additionalType => "CreativeWork",
-                :isBasedOn      => {
-                    :@type    => "CreativeWork",
-                    # @id must including dataset, Otherwise the records will be linked to all datasets in the graph
-                    :@id      => "#{INGEST_CONF[:prefixid]}_#{INGEST_CONF[:provider][:@id] }_#{INGEST_CONF[:dataset][:@id]}",
-                    :name     => INGEST_CONF[:genericRecordDesc],
-                    :provider => INGEST_CONF[:provider],
-                    :isPartOf => {
-                        :@id   => INGEST_CONF[:dataset][:@id],
-                        :@type => "Dataset",
-                        :name  => INGEST_CONF[:dataset][:name],
-                        :license  => INGEST_CONF[:dataset][:license]
-                    }
-                },
-                :@context  => ["http://schema.org", { :@language => "#{  o[:contextLanguage] }-#{ INGEST_CONF[:unicode_script]}" }]    
-            }
-        }}
     },
     rs_associated_media: {
         associatedMedia: { "@.attachments.media_keys" => lambda { |d,o| 
@@ -375,6 +374,10 @@ RULE_SET_v2_5 = {
                             :@type => "Conversation",
                             :@id   => "#{o[:prefixid]}_CONVERSATION_#{d["conversation_id"]}",
                             :name  => "Twitter conversation #{d["conversation_id"]}"
+                            #:name  => {
+                            #    :@language => ""
+                            #    :@value => "Twitter conversation #{d["conversation_id"]}"
+                            #}
                         }
                     }
                     unless o[:includes_tweets].nil?
@@ -427,7 +430,7 @@ RULE_SET_v2_5 = {
                 :address       => d["location"]
             }
 
-            if d["url"] ==  "https://"
+            unless d["url"] == "https://"
                 u.except!(:url)
             end
 
@@ -581,17 +584,17 @@ place.geo : {
                         identifier[:url] = "/#/record/#{o[:prefixid]}_#{referenced_tweet["id"]}"
                     end
                     
-                    rdata[:identifier] << identifier
+                    rdata[:identifier] << identifier.compact
 
                     #"lang": "de"
                     out = DataCollector::Output.new
                     rules_ng.run(RULE_SET_v2_5[:rs_in_language], d, out, o)
                     rdata.merge!(out.to_h)
 
-                    unless out.to_h[:inLanguage][:@id] == "und"
-                        o[:contextLanguage] = out.to_h[:inLanguage][:@id]
+                    unless out[:inLanguage][:@id] == "und"
+                        o[:contextLanguage] = out[:inLanguage][:@id]
                     else
-                        o[:contextLanguage] = INGEST_CONF[:metaLanguage]
+                        o[:contextLanguage] = o[:ingest_data][:metaLanguage]
                     end
 
                     # Text of a retweeted tweet might be cut off (twitter API v1)
@@ -605,7 +608,7 @@ place.geo : {
                                 :@id            => "#{o[:prefixid]}_#{referenced_tweet["id"]}",
                                 :@type          => o[:type],
                                 :additionalType => "CreativeWork",
-                                :@context       => ["http://schema.org", { :@language => "#{ o[:contextLanguage] }-#{ INGEST_CONF[:unicode_script]}" }],
+                                :@context       => ["http://schema.org", { :@language => "#{ o[:contextLanguage] }-#{ o[:ingest_data][:unicode_script]}" }],
                                 :name           => ref_tweet[:text],
                                 :inLanguage     => ref_tweet[:inLanguage],
                                 :identifier     => ref_tweet[:identifier]
@@ -626,7 +629,7 @@ place.geo : {
         includes_tweets: { "$.includes.tweets" => [ lambda { |d,o|  
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_tweets], d, out, o)
-            rdata = out[:tweets].to_h
+            rdata = out[:tweets]
             rdata[:isBasedOn].delete(:isPartOf)
             rdata.delete(:author)
             rdata.delete(:creator)
@@ -638,7 +641,8 @@ place.geo : {
             
     rs_tweets: { 
     # tweet Object (d)
-        tweets: { "@" => [ lambda { |d,o|  
+        tweets: { "@" => [ lambda { |d,o|
+        
             out = DataCollector::Output.new
 
             rdata = {
@@ -658,11 +662,15 @@ place.geo : {
                     :name  => "Twitter"
                 }
             }
-       
-            #add id, isBasedOn, isPartOf
-            #rules_ng.run(RULE_SET_v2_5[:rs_basic_schema], d, out, o)
-            #out.clear
-            
+
+            out = DataCollector::Output.new
+            rules_ng.run(RULE_SET_v2_5[:rs_id], d, out, o)
+            o[:id] = out[:id].first
+
+            rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
+            rdata.merge!(out[:basic_schema].to_h)
+            out.clear
+         
             user = {
                 :@type => "Person",
                 :@id   => "#{o[:prefixid]}_PERSON_#{d["author_id"]}"
@@ -686,18 +694,11 @@ place.geo : {
             rules_ng.run(RULE_SET_v2_5[:rs_in_language], d, out, o)
             rdata.merge!(out.to_h)
 
-            unless out.to_h[:inLanguage][:@id] == "und"
-                o[:contextLanguage] = out.to_h[:inLanguage][:@id]
+            unless out[:inLanguage][:@id] == "und"
+                o[:contextLanguage] = out[:inLanguage][:@id]
             else
-                o[:contextLanguage] = INGEST_CONF[:metaLanguage]
+                o[:contextLanguage] = o[:ingest_data][:metaLanguage]
             end
-
-            
-
-
-            basic_schema = DataCollector::Output.new
-            rules_ng.run(RULE_SET_v2_5[:rs_basic_schema], d, basic_schema, o)
-            rdata.merge!(basic_schema[:basic_schema].to_h)
 
             #"entities": { "hashtags": [] 
             rules_ng.run(RULE_SET_v2_5[:rs_keywords], d, out, o)
