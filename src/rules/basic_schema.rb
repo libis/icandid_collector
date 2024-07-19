@@ -2,6 +2,31 @@
 require 'data_collector'
 require "iso639"
 
+def get_uuid (uuid_url)
+    begin
+        http = HTTP
+        uri = URI.decode_www_form_component("#{uuid_url.to_s}")
+
+        http_response = http.follow.get(uri.to_s, {})
+
+        data = JSON.parse( http_response.body.to_s )
+
+        case http_response.code
+        when 200..299
+            uuid = data
+            url = "https://icandid.libis.be/_/" + uuid
+        when 400
+            uuid = data["uuid"]
+            url = "https://icandid.libis.be/_/" + uuid
+        end
+        url
+    rescue StandardError => e 
+        pp "rescue rescue rescuerescue"
+        pp e
+
+    end
+end
+
 RULE_SET_BASIC_ICANDID = {
     version: "1.0",
     rs_basic_schema: {
@@ -33,22 +58,7 @@ RULE_SET_BASIC_ICANDID = {
 
             uuid_url = o[:uuid_generate][:url] +"/"+ id +"?by="+ o[:uuid_generate][:by] +"&for="+ o[:uuid_generate][:for] +"&resolvable="+ o[:uuid_generate][:resolvable]
   
-            http = HTTP
-            uri = URI.decode_www_form_component("#{uuid_url.to_s}")
-
-            http_response = http.follow.get(uri.to_s, {})
-
-            data = JSON.parse( http_response.body.to_s )
-
-            case http_response.code
-            when 200..299
-                uuid = data
-                url = "https://icandid.libis.be/_/" + uuid
-            when 400
-                uuid = data["uuid"]
-                url = "https://icandid.libis.be/_/" + uuid
-            end
-
+            url = get_uuid(uuid_url)
  
             {
 
@@ -78,7 +88,7 @@ RULE_SET_BASIC_ICANDID = {
                         :@reverse => "prov:wasAssociatedWith"
                     }
                 }
-            }
+            }.compact
         
         }}
     }
