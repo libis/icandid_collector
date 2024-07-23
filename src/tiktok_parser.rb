@@ -36,7 +36,7 @@ def parse_queries(options: {})
             rule_set = @icandid_config.config[:rule_set].constantize 
         end
 
-        options[:type] = "message"
+        options[:type] = "Message"
 
 
         @icandid_config.queries_to_process.each do |query|

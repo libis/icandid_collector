@@ -149,12 +149,12 @@ def process_query(icandid_config: nil, query: nil, options: {})
             if data.nil?
                 @logger.warn "NO DATA AVAILABLE on this url #{url}"
                 break
-              end
+            end
         
-              unless (data["data"].empty? && data["_meta"]["total"] == 0)
-                  @logger.debug ("total record for this query : #{ data["_meta"]}")
-                  # Expand resultsdata to records with body
-                  data["data"].map!{ |d|
+            unless (data["data"].empty? && data["_meta"]["total"] == 0)
+                @logger.debug ("total record for this query : #{ data["_meta"]}")
+                # Expand resultsdata to records with body
+                data["data"].map!{ |d|
                     input_options[:uuid] = d["uuid"]
                     icandid_config.update_config_with_query_data( query: query, options: input_options)
                     record_url = icandid_config.config[:record_url]
@@ -162,11 +162,11 @@ def process_query(icandid_config: nil, query: nil, options: {})
                     record_data = icandid_input.collect_data_from_uri(url: record_url,  options: input_options )
 
                     unless record_data.nil? || record_data.empty?
-                      record_data
+                        record_data
                     else
-                      d
+                        d
                     end
-                  }
+                }
 
             end
         

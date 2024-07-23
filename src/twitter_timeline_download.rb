@@ -10,11 +10,12 @@ ROOT_PATH = File.join( File.dirname(__FILE__), '../')
 # https://twitter.com/search?q=%28from%3A+EU_Commission%29+until%3A2021-06-01+since%3A2021-01-10+-filter%3Areplies&src=recent_search_click
 
 
-pp ####################################################################################
+pp "####################################################################################"
 pp ""
 pp "            ISSUES WITH writing data[:data]                          "
 pp ""
-pp ####################################################################################
+pp "            CHECK test/postprocessing_twitter.rb                     "
+pp "####################################################################################"
 
 
 require 'icandid_collector'
