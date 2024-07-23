@@ -2,7 +2,6 @@
 $LOAD_PATH << '.' << './lib' << "#{File.dirname(__FILE__)}" << "#{File.dirname(__FILE__)}/lib"
 ROOT_PATH = File.join( File.dirname(__FILE__), '../')
 
-
 require 'icandid_collector'
 provider = 'plenum'
 
@@ -80,7 +79,7 @@ def process_query(icandid_config: nil, query: nil, options: {})
         
         icandid_input = IcandidCollector::Input.new( :icandid_config => icandid_config)
         data = icandid_input.collect_data_from_uri(url: url,  options: input_options )
-        
+
         if data.nil?
             @logger.warn "NO DATA AVAILABLE on this url #{url}"
             break
@@ -88,6 +87,7 @@ def process_query(icandid_config: nil, query: nil, options: {})
    
         unless (data.empty?)
             # Expand resultsdata to records with body
+           
             data.map!{ |d|
                 unless  d["id"].nil?
                     input_options[:session_id] = d["id"]
@@ -116,8 +116,9 @@ def process_query(icandid_config: nil, query: nil, options: {})
                 end
                 d
             }
-        
+
             output = DataCollector::Output.new
+            rules_ng.run( rule_set[:rs_filename], [data], output, options )
             rules_ng.run( rule_set[:rs_next_value], data, output, options )
             rules_ng.run( rule_set[:rs_raw_data], data, output, options )
 
@@ -131,11 +132,14 @@ def process_query(icandid_config: nil, query: nil, options: {})
                 raise "Error in request"
                 end
             end
-            
-            filename = "#{data.first["date"].to_date.strftime('%Y%m%d') }_#{data.first["id"]}_#{data.last["id"]}.json"
-            file =  File.join( icandid_config.config[:source_records_dir], filename )
-            icandid_output = IcandidCollector::Output.new( data: {data: data}, icandid_config: icandid_config)
-            icandid_output.save_data_to_uri( uri: "file://#{file}" , options: {"content_type": "application/json"})
+
+            unless output["filename"].nil?
+                filename = output["filename"].first
+                #filename = "#{data.first["date"].to_date.strftime('%Y%m%d') }_#{data.first["id"]}_#{data.last["id"]}.json"
+                file =  File.join( icandid_config.config[:source_records_dir], filename )
+                icandid_output = IcandidCollector::Output.new( data: {data: data}, icandid_config: icandid_config)
+                icandid_output.save_data_to_uri( uri: "file://#{file}" , options: {"content_type": "application/json"})
+            end
 
             unless output["next_token"].nil?
                 query[:params][:next_token] = output["next_token"].first 
