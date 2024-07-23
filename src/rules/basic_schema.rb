@@ -19,7 +19,7 @@ def get_uuid (uuid_url)
             uuid = data["uuid"]
             url = "https://icandid.libis.be/_/" + uuid
         end
-        url
+        [ url, uuid ]
     rescue StandardError => e 
         pp "rescue rescue rescuerescue"
         pp e
@@ -58,7 +58,7 @@ RULE_SET_BASIC_ICANDID = {
 
             uuid_url = o[:uuid_generate][:url] +"/"+ id +"?by="+ o[:uuid_generate][:by] +"&for="+ o[:uuid_generate][:for] +"&resolvable="+ o[:uuid_generate][:resolvable]
   
-            url = get_uuid(uuid_url)
+            url, uuid = get_uuid(uuid_url)
  
             {
 
