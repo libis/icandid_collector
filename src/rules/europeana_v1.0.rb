@@ -275,7 +275,10 @@ RULE_SET_v1_0 = {
                 rules_ng.run(RULE_SET_v1_0[:rs_language_to_jsonld], d, out, o)
                 out[:data]
             }}
-        ]
+        ],
+        color: { "$.object.aggregations..webResources..edmComponentColor" => lambda { |d,o|
+            d
+        }}
     },
     rs_language_to_jsonld: {
         data: { "@" => lambda { |d,o|
