@@ -2,7 +2,7 @@
 $LOAD_PATH << '.' << './lib' << "#{File.dirname(__FILE__)}" << "#{File.dirname(__FILE__)}/lib"
 
 require 'icandid_collector'
-provider = 'GoogleAI'
+provider = 'scopeArchiv_EAD'
 
 PROCESS_TYPE = "parser"
 ROOT_PATH = File.join( File.dirname(__FILE__), '../')
@@ -16,6 +16,7 @@ begin
     @logger.level = Logger::DEBUG
     @total_nr_parsed_records = 0
 
+
     Dir[  File.join( ROOT_PATH,"src/rules/#{provider.downcase}_*.rb") ].each {|file| require file; }
  
     config = {
@@ -25,7 +26,7 @@ begin
     icandid_config = IcandidCollector::Configs.new( :config => config , :ingest_data => INGEST_DATA) 
     icandid_utils  = IcandidCollector::Utils.new( :icandid_config => config) 
 
-    #pp icandid_config
+    # pp icandid_config
 
     # collector = IcandidCollector::Input.new( icandid_config.config ) 
     
@@ -43,8 +44,6 @@ begin
         @logger.info ("Paring records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
 
         icandid_config.config[:query] = query
-
-        icandid_config.config[:rule_set] = icandid_config.config[:query][:query][:rule_set]
             
         icandid_config.ingest_data[:dataset][:@id]  = query[:query][:id]
         icandid_config.ingest_data[:dataset][:name] = query[:query][:name].gsub(/_/," ").capitalize()
@@ -55,7 +54,9 @@ begin
         options = {
             :KYE => "**",
             :date => "**",
-            :id => '{{id}}'
+            :prefixid => "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }",
+            :type => "ArchiveComponent",
+            :additionalType => "OwnershipInfo"
         }
 
         icandid_config.update_config_with_query_data( query: query, options: options )
@@ -67,15 +68,17 @@ begin
 
         options = {
             :prefixid => "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }",
-            :type => "CreativeWork"
+            :type => "ArchiveComponent"
         }
 
         icandid_input  = IcandidCollector::Input.new( :icandid_config => icandid_config)
         icandid_input.process_files( options: options  )
 
         @total_nr_parsed_records = @total_nr_parsed_records + icandid_input.total_nr_parsed_files
-        
+
         query = icandid_config.config[:query]
+
+        #pp query
 
     end
     

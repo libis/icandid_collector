@@ -110,6 +110,8 @@ module IcandidCollector
 
         one_record_output = DataCollector::Output.new
 
+        # @logger.debug ("process data output.data #{ output.data } ")
+
         output.data[:records].each do | data |
           unless data.nil?
             data = data.with_indifferent_access
@@ -170,21 +172,16 @@ module IcandidCollector
         data = input.from_uri("file://#{ file }", {} )
         
         options[:file] = file
+
 #        pp data
- #       pp rule_set
 
         # @logger.debug(" options #{ options }")
-
-        #@logger.debug(" rules_ng.run #{ rule_set }")
-        #puts rule_set
-        #puts rule_set[:version]
-        #puts "================>"
-
+        # @logger.debug("parse_data rules_ng.run #{ rule_set }")
+        
         rules_ng.run( rule_set[:rs_records], data, output, options )
 
-        #pp output.raw
         # output.crush
-        
+        # @logger.debug("parse_data output  #{ output}")
         output
 
       rescue StandardError => e

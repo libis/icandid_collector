@@ -37,7 +37,7 @@ ROSETTA_IIIF_RULES_1_0 = {
 
             if out[:record].nil?
                 pp d.keys
-                pp "MAYDAY_MAYDAY"
+                pp "ERROR: No data in record !"
                 pp out
             end
             

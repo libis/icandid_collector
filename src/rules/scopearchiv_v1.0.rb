@@ -1,7 +1,12 @@
 #encoding: UTF-8
+
+# De metadata van ScopeArchiv wordt aangevuld met gegevens uit Rosetta.
+# Zie associatedMedia voor meer info
+
 require 'data_collector'
 require "iso639"
 require_relative 'basic_schema'
+
 
 Dir[  File.join( ROOT_PATH,"src/rules/rosetta_*.rb") ].each {|file| require file; }
 
@@ -17,7 +22,7 @@ RULE_SET_v1_0 = {
 
             if out[:record].nil?
                 pp d.keys
-                pp "MAYDAY_MAYDAY"
+                pp "ERROR: No data in record !"
                 pp out
             end
 

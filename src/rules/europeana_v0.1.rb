@@ -2,7 +2,7 @@
 require 'data_collector'
 require "iso639"
 require_relative 'basic_schema'
-require_relative 'detect_language_script'
+require_relative 'language_helpers'
 
 RULE_SET_v0_1 = {
     version: "0.1",
@@ -118,7 +118,7 @@ RULE_SET_v0_1 = {
                 l = e[0]  # language code
                 n = e[1]  # actual data array
                 n.each{ |t|
-                    rules_ng.run(RULE_SET_LANGUAGE_SCRIPT[:rs_detect_language_script], t, out, o)
+                    rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], t, out, o)
                     r.append(
                         {
                             :@value =>  t,
@@ -136,7 +136,7 @@ RULE_SET_v0_1 = {
                 l = e[0]  # language code
                 n = e[1]  # actual data array
                 n.each{ |t|
-                    rules_ng.run(RULE_SET_LANGUAGE_SCRIPT[:rs_detect_language_script], t, out, o)
+                    rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], t, out, o)
                     r.append(
                         {
                             :@value =>  t,
@@ -154,7 +154,7 @@ RULE_SET_v0_1 = {
                 l = e[0]  # language code
                 n = e[1]  # actual data array
                 n.each{ |t|
-                    rules_ng.run(RULE_SET_LANGUAGE_SCRIPT[:rs_detect_language_script], t, out, o)
+                    rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], t, out, o)
                     r.append(
                         {
                             :@value =>  t,
