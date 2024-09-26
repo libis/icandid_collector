@@ -56,20 +56,30 @@ RULE_SET_v1_0 = {
             unless out.data[:associatedMedia].nil?
                 url = out.data[:associatedMedia][:embedUrl].gsub('representation','metadata')
 
-                pp out.data[:identifier]
+                # pp out.data[:identifier]
 
                 data = icandid_input.collect_data_from_uri(url:  url  ,  options: o )
                 out.data[:identifier] =  [ out.data[:identifier] ] unless  out.data[:identifier].is_a?(Array)
+
+                data["identifier"] = [ data["identifier"]  ] unless data["identifier"].is_a?(Array)
+                
                 out.data[:identifier].concat ( 
                     data["identifier"]
                         .select {|i| /.tif$/ =~ i }
-                        .map { |i| {
+                        &.map { |i| 
+                        # pp i
+                        {
                             :@type => "PropertyValue",
                             :@id   => "teneo_code",
                             :name  => "Teneo Code",
                             :value => i.gsub('.tif','')
                         }
                     })
+
+                unless out.data[:identifier].select{ |i|  i[:name] == "Teneo Code" }.empty?
+                    out.data[:identifier] = out.data[:identifier].reject{ |i| i[:name] == "Teneo Code [Extracted From Repositorycode]" }
+                end
+
             end
             rdata.merge!(out.data)
 
@@ -99,15 +109,42 @@ RULE_SET_v1_0 = {
         }}
     },
     rs_record_data: {
-
+        
         identifier:  {'$.archdesc.descgrp..unitid._repositorycode' =>  lambda { |d,o| 
             if d.is_a?(String)
-                {
+                rdata = {
                     :@type => "PropertyValue",
                     :@id   => "scopeArchiv_ref_code",
                     :name  => "scopeArchiv Ref Code",
                     :value => d
                 }
+
+                letters, numbers = d.split('/').last.downcase.match(/(^[a-z]*)([0-9]*)/).captures
+                id = "#{letters}#{numbers.rjust(6, '0')}"
+
+                unless Dir["#{o[:config][:query][:googeAI_test_dir]}*#{id}*.json"].empty?
+                    pp  "#{o[:config][:query][:googeAI_test_dir]}*#{id}*.json"
+                    rdata = [
+                        rdata = {
+                            :@type => "PropertyValue",
+                            :@id   => "scopeArchiv_ref_code",
+                            :name  => "scopeArchiv Ref Code",
+                            :value => d
+                        },
+                        {
+                            :@type => "PropertyValue",
+                            :@id   => "teneo_code",
+                            :name  => "Teneo Code [Extracted From Repositorycode]",
+                            :value => "#{id}"
+                        }
+                    ]
+                    
+                end
+
+                rdata
+                
+               
+
             end
         }},
 
