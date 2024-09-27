@@ -65,7 +65,7 @@ RULE_SET_v1_0 = {
                 
                 out.data[:identifier].concat ( 
                     data["identifier"]
-                        .select {|i| /.tif$/ =~ i }
+                        .select {|i| i.is_a?(String) && /.tif$/ =~ i }
                         &.map { |i| 
                         # pp i
                         {
