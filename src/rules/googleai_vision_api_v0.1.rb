@@ -60,8 +60,38 @@ GOOGLE_AI_VISION_API_v1_0 = {
                             }
                         else
                             pp " data[\"hits\"][\"total\"][\"value\"] #{data["hits"]["total"]["value"]}"
-                            pp o[:file]
-                            raise "request_options is link to multiple records !!!!!!!! \n #{request_options}"
+
+
+                            #pp o[:file]
+
+                            #pp o[:id]
+                            
+
+                            id = data["hits"]["hits"].select{ |h| 
+                                scopeArchiv_ref_code = h["_source"]["identifier"].select { |i| i["@id"] == 'scopeArchiv_ref_code'}
+                                pp "Use the record that has a scopeArchiv_ref_code that almost looks like the id from the filename"
+                                unless  scopeArchiv_ref_code.nil?
+                                    scopeArchiv_ref_code = scopeArchiv_ref_code.first["value"]
+                                    letters, numbers = scopeArchiv_ref_code.split('/').last.downcase.match(/(^[a-z]*)([0-9]*)/).captures
+                                    scopeArchiv_ref_code = "#{letters}#{numbers.rjust(6, '0')}"
+                                end
+                                scopeArchiv_ref_code == o[:id]
+                            }.first["_source"]["@id"]
+                            pp "id: #{id}"
+                            pp "Must  be fixed somewhere else"
+                            unless id.nil?
+                                rdata = { 
+                                    "@id": File.basename(o[:file], '.json'),
+                                    "file_generatedAtTime": File.ctime(o[:file]),
+                                    "_source": { 
+                                        "@id": id,
+                                        "texts":   d["texts"],
+                                        "objects": d["objects"]
+                                    }       
+                                }
+                            else
+                                raise "request_options is link to multiple records !!!!!!!! \n #{request_options}"
+                            end
                         end
                     end
                 end

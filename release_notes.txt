@@ -1,0 +1,19 @@
+VERSION_TAG
+## v3.1_20240507 ##
+=> Basic_schema uuid implementation
+=> scopeArchiv_parser
+=> Mail parameters in .env (see also docker-compose file)
+
+## v3.1_20240709 ##
+=> collector internal id
+=> twitter timeline APi download
+=> plenum
+
+## v3.1_20240717 ##
+=> twitter timeline parsing
+
+## v3.1_20240729 ##
+=> data_collector-0.53.0.gem
+
+## v3.1_20240916 ##
+=> scopeArchiv_ead
