@@ -192,8 +192,6 @@ module IcandidCollector
 
       files = get_files_to_parse()
 
-      pp files 
-      exit();
       if files.empty?
         @logger.warn ("No files to process in #{ @icandid_config.config[:source_records_dir] }")        
       end
