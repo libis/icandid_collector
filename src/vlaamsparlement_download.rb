@@ -28,11 +28,17 @@ def handle_document(uri: nil, source_records_dir: nil)
             json_file = File.join( source_records_dir, "#{id}.json")
             uri = "https://ws.vlpar.be/e/opendata/jln/#{id}"
             @logger.info (" uri : #{ uri } ")
-            headers = {"Content-Type" => "application/json", "accept-encoding" => "UTF-8", "Accept" => "application/json"}
-            File.open(json_file, "wb") do |file|
-                file.write URI.open(uri, headers).read
-                handled_uri=true
+
+            input_options = {
+                number_of_retries: 3,
+                headers: {"Content-Type" => "application/json", "accept-encoding" => "UTF-8", "Accept" => "application/json"}
+            }
+            file_input = IcandidCollector::Input.new()        
+            file = file_input.download_file_from_uri(url: uri,  download_path: json_file, options: input_options )
+            if file[:content_type] != "application/json"
+                @logger.warn ("Downloaded file from #{uri} is of type [ #{ file[:content_type] } ]")
             end
+            handled_uri=true
         end
 
         if uri.match(/vragen-en-interpellaties/)
@@ -42,27 +48,43 @@ def handle_document(uri: nil, source_records_dir: nil)
             @logger.info (" id : #{ id } ")
             xml_file = File.join( source_records_dir, "#{id}.xml")
             @logger.info (" uri : #{ uri } ")
-            File.open(xml_file, "wb") do |file|
-                file.write URI.open(uri, "Content-Type" => "application/xml").read
-                handled_uri=true
+            input_options = {
+              number_of_retries: 3,
+              header: {"Content-Type" => "application/xml"}
+            }
+            file_input = IcandidCollector::Input.new()        
+            file = file_input.download_file_from_uri(url: uri,  download_path: xml_file, options: input_options )
+            if file[:content_type] != "application/xml"
+                @logger.warn ("Downloaded file from #{uri} is of type [ #{ file[:content_type] } ]")
             end
-          end
+            handled_uri=true
+        end
     
-          if uri.match(/pfile\?id/)
+        if uri.match(/pfile\?id/)
             id = uri.split('=').last
             @logger.info (" id : #{ id } ")
             pdf_file = File.join( source_records_dir, "#{id}.pdf")
             @logger.info (" uri : #{ uri } ")
-            File.open(pdf_file, "wb") do |file|
-              file.write URI.open(uri, "Content-Type" => "application/pdf").read
-              handled_uri=true
+
+            input_options = {
+                number_of_retries: 3,
+                header: {"Content-Type" => "application/pdf"}
+            }
+            file_input = IcandidCollector::Input.new()        
+            file = file_input.download_file_from_uri(url: uri,  download_path: pdf_file, options: input_options )
+            if file[:content_type] != "application/pdf"
+                @logger.warn ("Downloaded file from #{uri} is of type [ #{ file[:content_type] } ]")
             end
-          end
-    
-          unless handled_uri==true
+
+            handled_uri=true
+        end
+        
+        unless handled_uri==true
             @logger.info (" #{ uri } NOT HANDLED")
             exit
-          end
+        end
+    rescue Exception => e
+        @logger.error ("Error in handle_document: #{e.message}")
     end
 end
 
@@ -87,6 +109,7 @@ def process_recent_queries(icandid_config)
             }
 
             icandid_config.prepare_query(query: query, options: options)
+
             url = icandid_config.config[ options[:download_url_prop].to_sym ]
             unless url.nil?
 
@@ -94,6 +117,8 @@ def process_recent_queries(icandid_config)
                 
                 process_query(icandid_config: icandid_config, query: query, options: options)
                 
+                options[:page] = 1
+
                 url = icandid_config.config[ options[:download_url_prop].to_sym ]
                 icandid_config.update_config_with_query_data( query: query, options: options )
                 icandid_config.update_query_config
@@ -111,9 +136,6 @@ def process_recent_queries(icandid_config)
     end
 end
 
-
-
-
 def process_backlog_queries(icandid_config)
     begin
 
@@ -124,11 +146,7 @@ def process_backlog_queries(icandid_config)
             @logger.info ("Download records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
             icandid_config.config[:query] = query    
             
-            if query[:backlog].nil?
-                next;
-            end
-
-            if query[:backlog][:completed]
+            if query[:backlog].nil? || query[:backlog][:completed]
                 next;
             end
 
@@ -142,13 +160,16 @@ def process_backlog_queries(icandid_config)
             icandid_config.prepare_query(query: query, options: options)
             url = icandid_config.config[ options[:download_url_prop].to_sym ]
 
+
             until url.nil?
 
                 @logger.info("download_url : #{url}")
                 @logger.debug("save records to : #{icandid_config.config[:source_records_dir]}")
 
                 process_query(icandid_config: icandid_config, query: query, options: options)
-                
+
+                options[:page] = 1
+
                 query[:backlog][:current_process_url] = nil
                 icandid_config.update_query_config
                 icandid_config.prepare_query(query: query, options: options)
@@ -168,10 +189,6 @@ def process_backlog_queries(icandid_config)
     end
 end
 
-
-
-
-
 def process_query(icandid_config: nil, query: nil, options: {})
 
     if icandid_config.config[ :rule_set].nil?
@@ -180,12 +197,12 @@ def process_query(icandid_config: nil, query: nil, options: {})
         rule_set = icandid_config.config[ :rule_set].constantize 
     end
 
-    icandid_config.ingest_data[:dataset][:@id]  = query[:query][:id]
-    icandid_config.ingest_data[:dataset][:name] = query[:query][:name].gsub(/_/," ").capitalize()
+    #icandid_config.ingest_data[:dataset][:@id]  = query[:query][:id]
+    #icandid_config.ingest_data[:dataset][:name] = query[:query][:name].gsub(/_/," ").capitalize()
 
-    options[:prefixid] = "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }"
+    #options[:prefixid] = "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }"
 
-    icandid_config.update_config_with_query_data( query: query, options: options )
+    #icandid_config.update_config_with_query_data( query: query, options: options )
 
     url = icandid_config.config[ options[:download_url_prop].to_sym ]
 
@@ -251,7 +268,13 @@ def process_query(icandid_config: nil, query: nil, options: {})
             url = nil
         else    
             icandid_config.update_config_with_query_data( query: query, options: options )
+            
             url = icandid_config.config[ options[:download_url_prop].to_sym ]
+            
+            unless query [ options[:collection_type].to_sym ].nil?
+                query[ options[:collection_type].to_sym  ][:current_process_url] = icandid_config.config[ options[:download_url_prop].to_sym ]
+            end
+            icandid_config.update_query_config
         end
         @logger.info ("NEXT URL : #{url}")
 
@@ -266,8 +289,6 @@ def process_query(icandid_config: nil, query: nil, options: {})
     end
 end
 
-
-
 begin
 
     @logger = Logger.new(STDOUT)
@@ -279,6 +300,7 @@ begin
     }
 
     icandid_config = IcandidCollector::Configs.new( :config => config , :ingest_data => INGEST_DATA) 
+    icandid_utils  = IcandidCollector::Utils.new( :icandid_config => icandid_config.config )
     
     @logger.info ("Start downloading using config: #{ File.join( config[:config_path] , "config.yml") }")
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -289,8 +311,28 @@ begin
 
 rescue => exception
     @logger.error("Error : #{ exception } ")
+
+
+    
+
 ensure
-    puts "Todo : send mail ?"
+
+    importance = "Normal"
+    subject = "iCANDID #{icandid_config.ingest_data[:provider][:name]} download"
+    message = <<END_OF_MESSAGE
+    
+    <h2>Download #{icandid_config.ingest_data[:provider][:name]} [#{icandid_config.ingest_data[:provider][:@id]}] data</h2>
+    Download using config: : #{File.join( icandid_config.query_config.path , "config.yml") }"
+  <H3>#{$0} </h3>
+  command_line_options :<br/> #{ icandid_config.command_line_options.map { |k, v|  "  - #{k}: #{v} </br>" }.join   }
+  
+    <hr>
+  
+END_OF_MESSAGE
+
+    icandid_utils.mailErrorReport(subject, message, importance, icandid_config)
+   
+
 end
 
 

@@ -17,3 +17,9 @@ VERSION_TAG
 
 ## v3.1_20240916 ##
 => scopeArchiv_ead
+
+## v3.1_20250128 ##
+=> vlaamparlement_download
+
+## v3.1_20250207 ##
+=> vlaamsparlement_download / vlaamsparlement_parser

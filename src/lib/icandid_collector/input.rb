@@ -88,8 +88,103 @@ module IcandidCollector
 
     end
 
+    def download_file_from_uri ( url: nil, download_path: nil , options: {} )
+      begin
+        if url.nil?
+          raise "url is required to download_file_from_uri"
+        end
+        if download_path.nil?
+          raise "download_path is required to collect_datdownload_file_from_uria_from_uri"
+        end
+        
+        if options[:method].nil?
+          options[:method] = "GET"
+        end
+
+        @number_of_retries = 2
+        unless options[:number_of_retries].nil?
+          @number_of_retries = options[:number_of_retries]
+        end
+        
+        uri = URI.decode_www_form_component("#{url.to_s}")
+        uri = URI(uri)
+        url = uri.to_s
+
+        http = HTTP
+        ctx = nil
+        http_query_options = {}
+
+        if options.key?(:headers)
+          @logger.debug "Set http headers"
+          http = http.headers(options[:headers])
+        end
+
+        if options.key?(:method) && options[:method].downcase.eql?('post')
+          raise DataCollector::InputError, "No body found, a POST request needs a body" unless options.key?(:body)
+          http_query_options[:body] = options[:body]
+  
+          http_response = http.follow.post(url, http_query_options)
+        elsif options.key?(:method) && options[:method].downcase.eql?('put')
+          raise DataCollector::InputError, "No body found, a PUT request needs a body" unless options.key?(:body)
+          http_query_options[:body] = options[:body]
+  
+          http_response = http.follow.put(url, http_query_options)
+        else
+          http_response = http.follow.get(url, http_query_options)
+        end
+
+        case http_response.code
+        when 200..299
+          
+          header_filename = get_filename(http_response.headers)
+          #unless header_filename.nil?
+          #  download_path =  File.join(File.dirname(download_path), header_filename)
+          #end
+          
+          file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : get_file_type(http_response.headers)
+          #pp file_type
+          #unless options.with_indifferent_access.has_key?(:raw) && options.with_indifferent_access[:raw] == true
+          #  case file_type
+          #  when 'application/ld+json'
+          #   pp "save_to #{download_path}"
+          #  when /^image/
+          #    pp "save_to #{download_path}"
+          #  else
+          #    pp "save_to #{download_path}"
+          #  end 
+          #end
+          #pp "TEST TEST TEST ----------------------------"
+
+          File.open(download_path, 'wb') { |file| file.write(http_response.body) }
+          raise '206 Partial Content' if http_response.code == 206
+          return { download_path: download_path, content_type: file_type, header_filename: header_filename }
+
+        when 401
+          raise DataCollector::InputError, 'Unauthorized'
+        when 403
+          raise DataCollector::InputError, 'Forbidden'
+        when 404
+          raise DataCollector::InputError, 'Not found'
+        else
+          raise DataCollector::InputError, "Unable to process received status code = #{http_response.code} error= #{http_response.body.to_s}"
+        end              
+ 
+      rescue Exception => e
+        @logger.error ("Error in download_file_from_uri: #{e.message}")
+
+        if @retries < @number_of_retries
+          @retries += 1
+          @logger.error ("Wait 30 seconds and try Again ==> number_of_retries:#{ @retries }")
+          sleep 30
+          download_file_from_uri( url: url, download_path: download_path , options: options )
+        end
+        @logger.error("Already tried #{@retries} times, I give up")
+        raise DataCollector::InputError, "Unable to download file"
+      end
+    end
+
     def process_files( options: {} )
-        config = @icandid_config.config()
+      config = @icandid_config.config()
       
       if config[:rule_set].nil?
         raise "rule_set is required to parse file"
@@ -97,11 +192,16 @@ module IcandidCollector
 
       files = get_files_to_parse()
 
-
+      pp files 
+      exit();
+      if files.empty?
+        @logger.warn ("No files to process in #{ @icandid_config.config[:source_records_dir] }")        
+      end
       options[:config] =  @icandid_config.config()
       options[:ingest_data] =  @icandid_config.ingest_data()
 
       @logger.info ("Start parsing using rule_set: #{ config[:rule_set]}")
+      config[:nbr_created_records] = 0
       files.each_with_index do |source_file, index| 
         # pp source_file
         parse_data( file: source_file, options: options, rule_set: config[:rule_set].constantize )
@@ -113,9 +213,12 @@ module IcandidCollector
         # @logger.debug ("process data output.data #{ output.data } ")
 
         output.data[:records].each do | data |
+
           unless data.nil?
             data = data.with_indifferent_access
-  
+            
+            config[:nbr_created_records] = config[:nbr_created_records] + 1
+
             one_record_output << data
             filename = "#{one_record_output['@id']}.json"
             destination = "file://#{ File.join(config[:records_dir], filename) }"
@@ -131,9 +234,9 @@ module IcandidCollector
       @logger.debug ("Get files from: #{ @icandid_config.config[:source_records_dir] } ")
      
       select_files_from_source_records_dir(
-        source_records_dir:       @icandid_config.config[:source_records_dir],
-        source_file_name_pattern: @icandid_config.config[:source_file_name_pattern],
-        last_parsing_datetime:    @icandid_config.config[:query][:last_parsing_datetime] 
+        source_records_dir:       @icandid_config.config[:source_records_dir].strip,
+        source_file_name_pattern: @icandid_config.config[:source_file_name_pattern].strip,
+        last_parsing_datetime:    @icandid_config.config[:query][:last_parsing_datetime].strip
       )
     end
 
@@ -144,13 +247,12 @@ module IcandidCollector
       end
 
       Dir["#{source_records_dir}/*"].each do |source_file| 
-
         if File.directory?( source_file )
           if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
             files.concat select_files_from_source_records_dir( source_records_dir: source_file, source_file_name_pattern: source_file_name_pattern,  last_parsing_datetime: last_parsing_datetime )
           end
         else
-          if Regexp.new(source_file_name_pattern).match(source_file)
+          if Regexp.new(source_file_name_pattern).match(File.basename(source_file))
             if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
               files << source_file
             end
@@ -173,7 +275,7 @@ module IcandidCollector
         
         options[:file] = file
 
-#        pp data
+        #   pp data
 
         # @logger.debug(" options #{ options }")
         # @logger.debug("parse_data rules_ng.run #{ rule_set }")
@@ -192,6 +294,31 @@ module IcandidCollector
         raise e
         exit
       end
+    end
+
+    def get_file_type(headers)
+      file_type = 'application/octet-stream'
+      file_type = if headers.include?('Content-Type')
+                    headers['Content-Type'].split(';').first
+                  else
+                    @logger.debug "No Header content-type available"
+                    MIME::Types.of(filename_from(headers)).first.content_type
+                  end
+        return file_type
+    end
+
+    def get_filename(headers)
+      filename = if headers.include?('Content-Disposition')
+                    content_disposition_hash = Hash[  headers['Content-Disposition'].delete('\\"').split(';').map { |e| e.strip.split('=', 2) } ]
+                    if content_disposition_hash.include?('filename')
+                      content_disposition_hash["filename"]
+                    else
+                      nil
+                    end
+                  else
+                   nil
+                  end
+        return filename
     end
   end
 end

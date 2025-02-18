@@ -42,6 +42,8 @@ module IcandidCollector
 
       @config = @init_config.clone
 
+
+
     end
 
     def config
@@ -194,6 +196,9 @@ module IcandidCollector
     end
 
     def get_periode(options)  
+
+      # rake test TEST=test/data_collector_start_end_date.rb TESTOPTS="--name=test_date_last_in_backlog -v"
+  
       # Method to calculate the current period (start and end dates) that is processed based on options provided.
       # 
       # options [String, Date] :start_date The lower bound of record creation time in UTC (e.g., "20210102").
@@ -211,6 +216,8 @@ module IcandidCollector
       end_date = options[:end_date]
       current_end_date = options[:current_end_date].nil? ? end_date : options[:current_end_date] 
       current_start_date = options[:current_start_date].nil? ? start_date : options[:current_start_date]
+  
+      max_time_interval = options[:max_time_interval].nil? ? "1.month" : options[:max_time_interval] 
   
       (start_date, end_date, current_end_date, current_start_date) = 
         [start_date, end_date, current_end_date, current_start_date].map do |d| 
@@ -231,37 +238,49 @@ module IcandidCollector
             pp "Invalid date : #{d}"          
           end
         end
-      
+     
       if options[:current_start_date].nil? && options[:current_end_date].nil?
         if options[:collection_type] == "backlog"
+          if match = max_time_interval.match(/(\d*)\.days/)
+            current_start_date = [ current_end_date.prev_day( (match.captures[0].to_i)-1 ) , start_date].max
+          end
           # if the start_date is not in the same month as the end date,
           # start from the first day of the month of the end date
-          current_start_date = [(Date.new(current_end_date.year, current_end_date.month, 1) ), start_date].max
+          if match = max_time_interval.match(/(\d*)\.month/)
+            current_start_date = [(Date.new(current_end_date.year, current_end_date.month, 1) ), start_date].max
+          end
+          if match = max_time_interval.match(/(\d*)\.year/)
+            current_start_date = [(Date.new(current_end_date.year, 1, 1) ), start_date].max
+          end
         end
   
         if options[:current_start_date].nil? && options[:current_end_date].nil?
           current_end_date = current_end_date + 1 unless current_end_date == Date.today
+          if match = max_time_interval.match(/(\d*)\.days/)
+            current_start_date = current_start_date + 1
+          end
         end
   
       else
-
+        
         if current_start_date == start_date
           return { current_start_date: nil, current_end_date: nil }
-          return
         end
         current_end_date = current_start_date
-        current_start_date = current_start_date.prev_month
-        current_start_date = [(Date.new( current_start_date.year, current_start_date.month, 1) ), start_date].max
-      end
   
-      if options[:collection_type] == "backlog"
-        if current_start_date != start_date
-          current_start_date = Date.new( current_start_date.year, current_start_date.month, 1)
+        if match = max_time_interval.match(/(\d*)\.days/)
+          current_start_date = [ current_end_date.prev_day(match.captures[0].to_i) , start_date].max
+        end
+        if match = max_time_interval.match(/(\d*)\.month/)
+          current_start_date = [ current_end_date.prev_month(match.captures[0].to_i) , start_date].max
+        end
+        if match = max_time_interval.match(/(\d*)\.year/)
+          current_start_date = [ current_end_date.prev_year(match.captures[0].to_i) , start_date].max
         end
       end
      
       return { current_start_date: current_start_date.strftime(format), current_end_date: current_end_date.strftime(format) }
-    end
+    end  
 
     def update_config_with_query_data( query:{}, options:{})
       # Process {{<values>}} in the config with Mustache.render
@@ -367,11 +386,52 @@ module IcandidCollector
     def prepare_query(icandid_config: nil, query: nil, options: {})
       begin
 
-        @logger.debug ("prepare_query for #{ options[:collection_type] } ")
-        @logger.debug ("prepare_query with url #{  options[:download_url_prop] } ")
-
+        @logger.debug ("prepare_query for collection_type #{ options[:collection_type] } ")
+        @logger.debug ("prepare_query with url parameter: #{  options[:download_url_prop] } ")
+        
+        if options[:collection_type] == "backlog"
+          @logger.warn ("Previous backlog download not finished properly. current_process_url still available in query config #{ @config[:query][:query][:id]}")
+          unless query[:backlog].nil?
+            unless query[:backlog][:current_process_url].nil?
+              update_config_with_query_data( query: query, options: options )
+              @config[ options[:download_url_prop].to_sym ] = query[:backlog][:current_process_url]
+              unless query[:backlog][:current_process_periode].nil?
+                @config[:start_date] = query[:backlog][:current_process_periode][:current_start_date]
+                @config[:end_date]   = query[:backlog][:current_process_periode][:current_end_date]
+              end
+              return nil
+            end
+          end
+        else
+          unless query[:recent_records].nil?
+            unless query[:recent_records][:current_process_url].nil?
+              @logger.warn ("Previous download not finished properly. current_process_url still available in query config #{ @config[:query][:query][:id]}")
+              update_config_with_query_data( query: query, options: options )
+              @config[ options[:download_url_prop].to_sym ] = query[:recent_records][:current_process_url]
+              unless query[:recent_records][:current_process_periode].nil?
+                @config[:start_date] = query[:recent_records][:current_process_periode][:current_start_date]
+                @config[:end_date]   = query[:recent_records][:current_process_periode][:current_end_date]
+              end
+              return nil
+            end
+          end
+        end
+                
         if  @config[ options[:download_url_prop].to_sym ].nil?
           raise "#{  options[:download_url_prop]  } not available in config"
+        end
+
+        if options[:collection_type] != "backlog" && options[:collection_type] != "recent_records"
+          # No need for calculating periodes. Just download once. 
+          # Used for datasets without a periodicaly download expl. IMDB or plenum
+          update_config_with_query_data( query: query, options: options )
+          return nil
+        end
+
+        if options[:collection_type] == "backlog"
+          query[:backlog][:current_process_url] = @config[ options[:download_url_prop].to_sym ]
+        else
+          query[:recent_records][:current_process_url] = @config[ options[:download_url_prop].to_sym ]
         end
 
         if options[:collection_type] == "backlog"
@@ -381,7 +441,8 @@ module IcandidCollector
             options[:current_start_date] = query[:backlog][:current_process_periode][:current_start_date]
             options[:current_end_date] = query[:backlog][:current_process_periode][:current_end_date]
           end
-        else
+        end
+        if options[:collection_type] == "recent_records"
           if query[:recent_records][:last_run_update].nil?
             if query[:backlog][:end_date].nil?
               start_date = Date.new(Date.today.year)
@@ -401,12 +462,15 @@ module IcandidCollector
         @logger.debug ("options #{ options } ")        
 
         current_process_periode = get_periode(options)
+
+
         @logger.debug ("current_process_periode #{ current_process_periode } ")     
-        
+      
         current_start_date = current_process_periode[:current_start_date]
         current_end_date = current_process_periode[:current_end_date]
         
         if current_start_date.nil? || current_end_date.nil?
+          @logger.info ("No period available. Usually this means everything has been downloaded")
           update_config_with_query_data( query: query, options: options )
           @config[ options[:download_url_prop].to_sym ] = nil
           query[:recent_records][:current_process_periode] = nil
@@ -450,6 +514,7 @@ module IcandidCollector
 
       rescue Exception => e
         @logger.error ("Error in prepare_query: #{e.message}")
+        exit();
       end
     end
   end

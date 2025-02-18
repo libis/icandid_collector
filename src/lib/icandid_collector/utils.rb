@@ -13,6 +13,20 @@ module IcandidCollector
       @icandid_config = icandid_config
     end
 
+    def tikaFullTextExtraction( data ) 
+      if icandid_config[:tika_url].nil?
+        unless icandid_config[:tika_server].nil?
+          icandid_config[:tika_url] = "https://#{ icandid_config[:tika_server] }/tika"
+        end
+      end
+      unless icandid_config[:tika_url].nil?
+        f_data = HTTP.put(icandid_config[:tika_url], headers: { accept: "text/plain" }, body: data)
+        if f_data.code == 200
+          f_data.body.to_s.encode!('UTF-8', :undef => :replace, :invalid => :replace, :replace => "")
+        end
+      end
+    end
+
     def mailErrorReport (subject,  report , importance, config)
       now = DateTime.now
 

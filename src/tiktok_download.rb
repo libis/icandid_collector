@@ -25,24 +25,38 @@ def process_recent_queries(icandid_config)
                 next;
             end
 
-            if query[:recent_records][:last_run_update].nil?
-                if query[:backlog][:end_date].nil?
-                    start_date = Date.new(Date.today.year)
-                else
-                    start_date = Date.parse(query[:backlog][:end_date])
-                end
-            else
-                start_date =  Date.parse(query[:recent_records][:last_run_update])
-            end
-
             options = { 
-                collection_type: "recent",
-                start_date: start_date,
-                end_date: start_processing
+                format: "%Y%m%d",
+                collection_type: "recent_records",
+                download_url_prop: "video_url",
+                page: 1
             }
 
-            prepare_query(query: query, options: options, icandid_config: icandid_config)
+            icandid_config.prepare_query(query: query, options: options)
+
+            query[:query][:value]["start_date"] = icandid_config.config[:start_date]
+            query[:query][:value]["end_date"]   = icandid_config.config[:end_date]
+
+            url = icandid_config.config[ options[:download_url_prop].to_sym ]
+            unless url.nil?
+
+                @logger.info("download_url : #{url}")
+                
+                process_query(icandid_config: icandid_config, query: query, options: options)
+                
+                options[:page] = 1
+
+                url = icandid_config.config[ options[:download_url_prop].to_sym ]
+                icandid_config.update_config_with_query_data( query: query, options: options )
+                icandid_config.update_query_config
+    
+            end
+
             query[:recent_records][:last_run_update] = start_processing.strftime()
+            query[:recent_records][:current_process_url] = nil
+            query[:recent_records][:current_process_periode] = nil
+            
+            icandid_config.config[:query] = query  
             icandid_config.update_query_config
 
         end
@@ -59,81 +73,52 @@ def process_backlog_queries(icandid_config)
             if query[:backlog].nil? || query[:backlog][:completed]
                 next;
             end
-            @logger.info ("Download records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
-
-            start_date = Date.parse(query[:backlog][:start_date])
-            end_date = Date.parse(query[:backlog][:end_date]) 
-
-            unless query[:backlog][:current_process_date].nil? || query[:backlog][:current_process_date].empty?
-                end_date = Date.parse(query[:backlog][:current_process_date]) 
-            else
-                query[:backlog][:current_process_date] = query[:backlog][:end_date]
-            end
-
-            @logger.debug ("query[:backlog][:current_process_date] #{query[:backlog][:current_process_date] }")
 
             options = { 
+                format: "%Y%m%d",
                 collection_type: "backlog",
-                start_date: start_date,
-                end_date: end_date
+                download_url_prop: "video_url",
+                max_time_interval: "30.days",
+                page: 1
             }
-
-            prepare_query(query: query, options: options, icandid_config: icandid_config)
-
-        end
-    end
-end
-
-def prepare_query(icandid_config: nil, query: nil, options: {})
-    begin
-
-        start_date = options[:start_date]
-        end_date = options[:end_date]
-
-        # start_date : The lower bound of video creation time in UTC ( "20210102" )
-        # end_date   : The upper bound of video creation time in UTC ( "20210123" )
-        #              The end_date must be no more than 30 days after the start_date 
-
-        current_end_date = end_date
-        current_start_date = [(current_end_date - (30).days), start_date].max
-
-        counter = 0
-        while (start_date <= current_start_date  && counter < 1000) 
-
-            @logger.debug ("get records between #{current_start_date} - #{current_end_date}")
-
-            counter = counter + 1
-
-            query[:query][:value]["start_date"] = (current_start_date).strftime("%Y%m%d") 
-            query[:query][:value]["end_date"] = (current_end_date).strftime("%Y%m%d") 
             
-            process_query(query: query, options: options, icandid_config: icandid_config)
+            icandid_config.prepare_query(query: query, options: options)
 
-            if options[:collection_type] == "backlog"
-                query[:backlog][:current_process_date] = current_end_date.strftime("%Y%m%d")
+            url = icandid_config.config[ options[:download_url_prop].to_sym ]
+
+            query[:query][:value]["start_date"] = icandid_config.config[:start_date]
+            query[:query][:value]["end_date"]   = icandid_config.config[:end_date]
+
+            until url.nil?
+
+                @logger.info("download_url : #{url}")
+                @logger.debug("save records to : #{icandid_config.config[:source_records_dir]}")
+
+                process_query(icandid_config: icandid_config, query: query, options: options)
+
+                options[:page] = 1
+                query[:backlog][:current_process_url] = nil
+
                 icandid_config.update_query_config
+                icandid_config.prepare_query(query: query, options: options)
+
+                query[:query][:value]["start_date"] = icandid_config.config[:start_date]
+                query[:query][:value]["end_date"]   = icandid_config.config[:end_date]
+
+                url = icandid_config.config[ options[:download_url_prop].to_sym ]
+
             end
 
-            current_end_date = current_start_date
-            current_start_date = current_end_date - (30).days
-
-            unless current_start_date > start_date
-                current_start_date = start_date
-            end
+            query[:backlog][:completed] = true
+            query[:backlog][:current_process_url] = nil
+            query[:backlog][:current_process_periode] = nil
             
-            if current_start_date == current_end_date
-                if options[:collection_type] == "backlog"
-                    query[:backlog][:current_process_date] = current_end_date.strftime("%Y%m%d")
-                    query[:backlog][:completed] = true
-                    icandid_config.update_query_config
-                end
-                break
-            end
+            icandid_config.config[:query] = query  
+
+            icandid_config.update_query_config 
+            
+
         end
-
-        query[:query][:value].delete("start_date")
-        query[:query][:value].delete("end_date")
-
     end
 end
 
@@ -160,16 +145,15 @@ def process_query(icandid_config: nil, query: nil, options: {})
         @logger.info ("Start Download source_records_dir: #{ icandid_config.config[:source_records_dir] } ")
 
         while (url)
-
             input_options = {
                 bearer_token: icandid_config.config[:auth][:bearer_token],
                 method: icandid_config.config[:method],
                 body:   JSON.generate( query[:query][:value] )
             }
-            
+
             icandid_input = IcandidCollector::Input.new( :icandid_config => icandid_config)
             data = icandid_input.collect_data_from_uri(url: url,  options: input_options )
-            
+
             output = DataCollector::Output.new
 
             rules_ng.run( rule_set[:rs_filename], data, output, options )
@@ -196,7 +180,9 @@ def process_query(icandid_config: nil, query: nil, options: {})
             else
                 query[:query][:value].delete("search_id")
                 query[:query][:value].delete("cursor")
-                # pp "HAS MOrE ?"
+                query[:query][:value].delete("start_date")
+                query[:query][:value].delete("end_date")
+                # pp "HAS MORE ?"
                 # pp output["has_more"]
                 url = nil
             end
@@ -204,7 +190,6 @@ def process_query(icandid_config: nil, query: nil, options: {})
         end
     end
 end
-
 
 begin
 
