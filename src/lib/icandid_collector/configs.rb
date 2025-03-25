@@ -173,6 +173,9 @@ module IcandidCollector
 
     def get_queries_to_process( )
 
+
+
+
       queries_to_process = @query_config[:queries].map { |q| 
         unless q.has_key?(:internal_collector_id) && ! q[:internal_collector_id].nil?
           q[:internal_collector_id] = rand(36**10).to_s(36)
@@ -180,6 +183,9 @@ module IcandidCollector
         q
       }
       @query_config[:queries] = queries_to_process
+
+      internal_collector_id_array = @query_config[:queries].map { |q| q[:internal_collector_id] }
+      raise 'internal_collector_id in query config file contains duplicate values!' unless internal_collector_id_array.uniq.length == internal_collector_id_array.length
 
       unless @command_line_options[:query_id].nil?
         query_ids_to_parse = @command_line_options[:query_id].split(",")
@@ -451,6 +457,9 @@ module IcandidCollector
             end
           else
             start_date =  Date.parse(query[:recent_records][:last_run_update])
+            if start_date > Date.today
+              start_date = Date.today
+            end 
           end
           options[:start_date] = start_date
           options[:end_date] = Date.today
