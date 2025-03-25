@@ -13,17 +13,38 @@ module IcandidCollector
       @icandid_config = icandid_config
     end
 
-    def tikaFullTextExtraction( data ) 
-      if icandid_config[:tika_url].nil?
-        unless icandid_config[:tika_server].nil?
-          icandid_config[:tika_url] = "https://#{ icandid_config[:tika_server] }/tika"
+    def tikaFullTextExtraction( data, options ) 
+      begin
+        if options.has_key?(:file)
+          downloadfile = options[:file]
+          if File.file?(downloadfile) 
+            # TODO 
+            # check if the extraction file (.txt) is older than the source file (.pdf in most cases)
+            @logger.debug("get full text from previous extration [#{ downloadfile } (#{ File.mtime(downloadfile) }) ]")
+            return File.open(downloadfile, 'r').read
+          end
         end
-      end
-      unless icandid_config[:tika_url].nil?
-        f_data = HTTP.put(icandid_config[:tika_url], headers: { accept: "text/plain" }, body: data)
-        if f_data.code == 200
-          f_data.body.to_s.encode!('UTF-8', :undef => :replace, :invalid => :replace, :replace => "")
+
+        if icandid_config[:tika_url].nil?
+          unless icandid_config[:tika_server].nil?
+            icandid_config[:tika_url] = "https://#{ icandid_config[:tika_server] }/tika"
+          end
         end
+        unless icandid_config[:tika_url].nil?
+          tika_response = HTTP.put(icandid_config[:tika_url], headers: { accept: "text/plain" }, body: data)
+          if tika_response.code == 200
+            output = tika_response.body.to_s.encode!('UTF-8', :undef => :replace, :invalid => :replace, :replace => "")
+            if options.has_key?(:file)
+              File.open(downloadfile, 'w') { |file| file.write(output) }
+            end
+            return output
+          end
+        end
+      rescue StandardError => e
+        @logger.error("#{ e.message  }")
+        @logger.error("#{ e.backtrace.inspect   }")
+        pp e.message
+        raise e.message
       end
     end
 
