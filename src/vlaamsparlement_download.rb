@@ -22,45 +22,46 @@ def handle_document(uri: nil, source_records_dir: nil)
         end
 
         handled_uri=false
-        if uri.match(/plenaire-vergaderingen|commissievergaderingen/)
-            id = uri.split('/').last
-            @logger.info (" id : #{ id } ")
-            json_file = File.join( source_records_dir, "#{id}.json")
-            uri = "https://ws.vlpar.be/e/opendata/jln/#{id}"
-            @logger.info (" uri : #{ uri } ")
 
-            input_options = {
-                number_of_retries: 3,
-                headers: {"Content-Type" => "application/json", "accept-encoding" => "UTF-8", "Accept" => "application/json"}
-            }
-            file_input = IcandidCollector::Input.new()        
-            file = file_input.download_file_from_uri(url: uri,  download_path: json_file, options: input_options )
-            if file[:content_type] != "application/json"
-                @logger.warn ("Downloaded file from #{uri} is of type [ #{ file[:content_type] } ]")
-            end
-            handled_uri=true
-        end
+        # if uri.match(/plenaire-vergaderingen|commissievergaderingen/)
+        #     id = uri.split('/').last
+        #     @logger.info (" id : #{ id } ")
+        #     json_file = File.join( source_records_dir, "#{id}.json")
+        #     uri = "https://ws.vlpar.be/e/opendata/jln/#{id}"
+        #     @logger.info (" uri : #{ uri } ")
+# 
+        #     input_options = {
+        #         number_of_retries: 3,
+        #         headers: {"Content-Type" => "application/json", "accept-encoding" => "UTF-8", "Accept" => "application/json"}
+        #     }
+        #     file_input = IcandidCollector::Input.new()        
+        #     file = file_input.download_file_from_uri(url: uri,  download_path: json_file, options: input_options )
+        #     if file[:content_type] != "application/json"
+        #         @logger.warn ("Downloaded file from #{uri} is of type [ #{ file[:content_type] } ]")
+        #     end
+        #     handled_uri=true
+        # end
 
-        if uri.match(/vragen-en-interpellaties/)
-            uri = uri.sub(/www.vlaamsparlement.be\/parlementaire-documenten\/vragen-en-interpellaties/, 'ws.vlpar.be/e/opendata/vi')
-            pp ("vragen-en-interpellaties uri : #{uri}")
-            id = uri.split('/').select { |u| u.match(/^[0-9]*$/) }.last
-            @logger.info (" id : #{ id } ")
-            xml_file = File.join( source_records_dir, "#{id}.xml")
-            @logger.info (" uri : #{ uri } ")
-            input_options = {
-              number_of_retries: 3,
-              header: {"Content-Type" => "application/xml"}
-            }
-            file_input = IcandidCollector::Input.new()        
-            file = file_input.download_file_from_uri(url: uri,  download_path: xml_file, options: input_options )
-            if file[:content_type] != "application/xml"
-                @logger.warn ("Downloaded file from #{uri} is of type [ #{ file[:content_type] } ]")
-            end
-            handled_uri=true
-        end
+        # if uri.match(/vragen-en-interpellaties/)
+        #     uri = uri.sub(/www.vlaamsparlement.be\/parlementaire-documenten\/vragen-en-interpellaties/, 'ws.vlpar.be/e/opendata/vi')
+        #     pp ("vragen-en-interpellaties uri : #{uri}")
+        #     id = uri.split('/').select { |u| u.match(/^[0-9]*$/) }.last
+        #     @logger.info (" id : #{ id } ")
+        #     xml_file = File.join( source_records_dir, "#{id}.xml")
+        #     @logger.info (" uri : #{ uri } ")
+        #     input_options = {
+        #       number_of_retries: 3,
+        #       header: {"Content-Type" => "application/xml"}
+        #     }
+        #     file_input = IcandidCollector::Input.new()        
+        #     file = file_input.download_file_from_uri(url: uri,  download_path: xml_file, options: input_options )
+        #     if file[:content_type] != "application/xml"
+        #         @logger.warn ("Downloaded file from #{uri} is of type [ #{ file[:content_type] } ]")
+        #     end
+        #     handled_uri=true
+        # end
     
-        if uri.match(/pfile\?id/)
+        if uri.match(/^https:\/\/docs.vlaamsparlement.be(\/files)?\/pfile\?id=/)
             id = uri.split('=').last
             @logger.info (" id : #{ id } ")
             pdf_file = File.join( source_records_dir, "#{id}.pdf")
@@ -81,7 +82,7 @@ def handle_document(uri: nil, source_records_dir: nil)
         
         unless handled_uri==true
             @logger.info (" #{ uri } NOT HANDLED")
-            exit
+            # exit
         end
     rescue Exception => e
         @logger.error ("Error in handle_document: #{e.message}")
@@ -237,14 +238,24 @@ def process_query(icandid_config: nil, query: nil, options: {})
                 res["metatags"]["metatag"].map { |mt|
                     if mt["name"] == "opendata"
                         if mt["value"].instance_of?  String
-                            opendata_uri = mt["value"].sub(/http:/, 'https:')
-                            @logger.debug ("download #{opendata_uri} [#{ mt["name"] }] for #{ res["id"]} ")
-                            input_options[:headers] = {"Content-Type" => "application/json", "accept-encoding" => "UTF-8", "Accept" => "application/json"}
-                            http_response = icandid_input.collect_data_from_uri(url: opendata_uri,  options: input_options )
-                            if http_response.nil?
-                                mt["value"] = "Error downloading #{opendata_uri}"
-                            else
-                                mt["value"] = http_response
+                            begin
+                                opendata_uri = mt["value"].sub(/http:/, 'https:')
+                                @logger.debug ("download #{opendata_uri} [#{ mt["name"] }] for #{ res["id"]} ")
+                                input_options[:headers] = {"Content-Type" => "application/json", "accept-encoding" => "UTF-8", "Accept" => "application/json"}
+                                http_response = icandid_input.collect_data_from_uri(url: opendata_uri,  options: input_options )
+                                if http_response.nil?
+                                    mt["value"] = "Error downloading #{opendata_uri}"
+                                else
+                                    mt["value"] = http_response
+                                end
+                            rescue Exception => e
+                                if  /^Unable to process received status code = 400/ =~ e.message
+                                    mt["value"] = "Error downloading #{opendata_uri} [ 400 Bad request ] "
+                                else
+                                    mt["value"] = "Error downloading #{opendata_uri}"
+                                    raise e
+                                end
+                                @logger.error ("Error in collect_data_from_uri: #{e.message}")                               
                             end
                         end
                     end
@@ -298,11 +309,12 @@ begin
     config = {
         :config_path => File.join(ROOT_PATH, "./config/#{provider}")
     }
+    
+    @logger.info ("Start downloading using config: #{ File.join( config[:config_path] , "config.yml") }")
 
     icandid_config = IcandidCollector::Configs.new( :config => config , :ingest_data => INGEST_DATA) 
     icandid_utils  = IcandidCollector::Utils.new( :icandid_config => icandid_config.config )
-    
-    @logger.info ("Start downloading using config: #{ File.join( config[:config_path] , "config.yml") }")
+        
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
     @logger.info ("Download for queries in : #{File.join( icandid_config.query_config.path , icandid_config.query_config.name) }")
 
@@ -312,7 +324,23 @@ begin
 rescue => exception
     @logger.error("Error : #{ exception } ")
 
+    importance = "High"
+    subject = "iCANDID #{icandid_config.ingest_data[:provider][:name]} download [Error]"
+    message = <<END_OF_MESSAGE
+    
+    <h2>Download #{icandid_config.ingest_data[:provider][:name]} [#{icandid_config.ingest_data[:provider][:@id]}] data</h2>
+    Download using config: : #{File.join( icandid_config.query_config.path , "config.yml") }"
+  <H3>#{$0} </h3>
+  command_line_options :<br/> #{ icandid_config.command_line_options.map { |k, v|  "  - #{k}: #{v} </br>" }.join   }
+  
+  <p>Error</p>
+  <br/>
+  #{exception}
+    <hr>
+  
+END_OF_MESSAGE
 
+    icandid_utils.mailErrorReport(subject, message, importance, icandid_config)
     
 
 ensure
@@ -331,7 +359,6 @@ ensure
 END_OF_MESSAGE
 
     icandid_utils.mailErrorReport(subject, message, importance, icandid_config)
-   
 
 end
 

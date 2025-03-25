@@ -125,7 +125,7 @@ END_OF_MESSAGE
 ensure
   
     importance = "Normal"
-    subject = "iCANDID #{@icandid_config.ingest_data[:provider][:name]} parsing [#{@total_nr_parsed_files}]"
+    subject = "iCANDID #{@icandid_config.ingest_data[:provider][:name]} parsing [#{@total_nr_parsed_files} => #{@icandid_config.config[:nbr_created_records]}]"
     message = <<END_OF_MESSAGE
     
     <h2>Parsing #{@icandid_config.ingest_data[:provider][:name]} [#{@icandid_config.ingest_data[:provider][:@id]}] data</h2>
