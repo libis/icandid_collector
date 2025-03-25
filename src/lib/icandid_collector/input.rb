@@ -81,7 +81,7 @@ module IcandidCollector
             @logger.error( data )
             raise "429 Too Many Requests"
           end
-        else
+        else         
           raise e.message
         end
       end
@@ -115,7 +115,7 @@ module IcandidCollector
         http_query_options = {}
 
         if options.key?(:headers)
-          @logger.debug "Set http headers"
+          # @logger.debug "Set http headers"
           http = http.headers(options[:headers])
         end
 
@@ -136,7 +136,7 @@ module IcandidCollector
         case http_response.code
         when 200..299
           
-          header_filename = get_filename(http_response.headers)
+          header_filename = filename_from(http_response.headers)
           #unless header_filename.nil?
           #  download_path =  File.join(File.dirname(download_path), header_filename)
           #end
@@ -184,70 +184,95 @@ module IcandidCollector
     end
 
     def process_files( options: {} )
-      config = @icandid_config.config()
-      
-      if config[:rule_set].nil?
-        raise "rule_set is required to parse file"
-      end
-
-      files = get_files_to_parse()
-
-      if files.empty?
-        @logger.warn ("No files to process in #{ @icandid_config.config[:source_records_dir] }")        
-      end
-      options[:config] =  @icandid_config.config()
-      options[:ingest_data] =  @icandid_config.ingest_data()
-
-      @logger.info ("Start parsing using rule_set: #{ config[:rule_set]}")
-      config[:nbr_created_records] = 0
-      files.each_with_index do |source_file, index| 
-        # pp source_file
-        parse_data( file: source_file, options: options, rule_set: config[:rule_set].constantize )
-        @total_nr_parsed_files =  @total_nr_parsed_files + 1
-        output.data[:records] = [output.data[:records]] unless output.data[:records].is_a?(Array)
-
-        one_record_output = DataCollector::Output.new
-
-        # @logger.debug ("process data output.data #{ output.data } ")
-
-        output.data[:records].each do | data |
-
-          unless data.nil?
-            data = data.with_indifferent_access
-            
-            config[:nbr_created_records] = config[:nbr_created_records] + 1
-
-            one_record_output << data
-            filename = "#{one_record_output['@id']}.json"
-            destination = "file://#{ File.join(config[:records_dir], filename) }"
-
-            one_record_output.to_uri( destination,  options)
-            one_record_output.clear
-          end
+      begin
+        if icandid_config.config[:rule_set].nil?
+          raise "rule_set is required to parse file"
         end
-      end    
-    end 
+
+        files = get_files_to_parse()
+
+        if files.empty?
+          @logger.warn ("No files to process in #{ icandid_config.config[:source_records_dir] }")        
+        end
+        options[:config] =  icandid_config.config()
+        options[:ingest_data] =  icandid_config.ingest_data()
+
+        @logger.info ("Start parsing using rule_set: #{ icandid_config.config[:rule_set]}")
+        icandid_config.config[:nbr_created_records] = 0
+        files.each_with_index do |source_file, index| 
+          parse_data( file: source_file, options: options, rule_set: icandid_config.config[:rule_set].constantize )
+          @total_nr_parsed_files =  @total_nr_parsed_files + 1
+          output.data[:records] = [output.data[:records]] unless output.data[:records].is_a?(Array)
+
+          one_record_output = DataCollector::Output.new
+
+          # @logger.debug ("process data output.data #{ output.data } ")
+
+          output.data[:records].each do | data |
+
+            unless data.nil?
+              data = data.with_indifferent_access
+              
+              icandid_config.config[:nbr_created_records] = icandid_config.config[:nbr_created_records] + 1
+
+              one_record_output << data
+              filename = "#{one_record_output['@id']}.json"
+              destination = "file://#{ File.join(icandid_config.config[:records_dir], filename) }"
+
+              one_record_output.to_uri( destination,  options)
+              one_record_output.clear
+            end
+          end
+          @logger.warn ("nbr_created_records nbr_created_recordsnbr_created_recordsin #{ icandid_config.config[:nbr_created_records] }")  
+          if source_file =~ /\/new\//
+            @logger.debug ("Move file to processed-path")
+            target_file = source_file.gsub('/new/', '/processed/')
+            FileUtils.mkdir_p( File.dirname(target_file) ) unless Dir.exist?(File.dirname(target_file))
+            FileUtils.mv(source_file, target_file)
+          end
+        end    
+      rescue Exception => e
+        @logger.error ("Error processing file ")
+        @logger.error("#{ e.message  }")
+        @logger.error("#{ e.backtrace.inspect   }")
+       # raise DataCollector::InputError, "Error while processing file"
+      end
+    end
 
     def get_files_to_parse
-      @logger.debug ("Get files from: #{ @icandid_config.config[:source_records_dir] } ")
-     
       select_files_from_source_records_dir(
-        source_records_dir:       @icandid_config.config[:source_records_dir].strip,
-        source_file_name_pattern: @icandid_config.config[:source_file_name_pattern].strip,
-        last_parsing_datetime:    @icandid_config.config[:query][:last_parsing_datetime].strip
+        source_records_dir:       icandid_config.config[:source_records_dir].strip,
+        source_file_name_pattern: icandid_config.config[:source_file_name_pattern].strip,
+        last_parsing_datetime:    icandid_config.config[:query][:last_parsing_datetime].strip
       )
     end
 
     def select_files_from_source_records_dir(source_records_dir: nil, source_file_name_pattern: nil,  last_parsing_datetime: nil )
+     
       files = []
-      unless @icandid_config.config[:query][:last_parsing_datetime].nil?
-        last_parsing_datetime = Date.parse( @icandid_config.config[:query][:last_parsing_datetime] )
+      unless icandid_config.config[:query][:last_parsing_datetime].nil?
+        last_parsing_datetime = Date.parse( icandid_config.config[:query][:last_parsing_datetime] )
       end
 
-      Dir["#{source_records_dir}/*"].each do |source_file| 
+      @logger.debug ("Select files from: #{source_records_dir}/*")
+      @logger.debug ("Select files with last_parsing_datetime: #{last_parsing_datetime}")
+      
+      source_files = Dir["#{source_records_dir}/*"]
+      unless icandid_config.config[:source_records_dir] =~ /\/processed(\/|$)/
+        @logger.debug ("Do not select files with 'processed' in the pathname: #{source_records_dir}")
+        source_files = source_files.filter { |source_file|  source_file !~ /\/processed(\/|$)/ }
+      end
+
+      source_files.each do |source_file| 
         if File.directory?( source_file )
-          if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
-            files.concat select_files_from_source_records_dir( source_records_dir: source_file, source_file_name_pattern: source_file_name_pattern,  last_parsing_datetime: last_parsing_datetime )
+          unless source_records_dir =~ /\/\*\*\//
+            if source_file =~ /\/processed(\/|$)/
+              @logger.debug ("Do not select files with 'processed' in the pathname: #{source_file}")
+              next
+            end
+            if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
+              files.concat select_files_from_source_records_dir( source_records_dir: source_file, source_file_name_pattern: source_file_name_pattern,  last_parsing_datetime: last_parsing_datetime )
+            end
           end
         else
           if Regexp.new(source_file_name_pattern).match(File.basename(source_file))
@@ -257,6 +282,7 @@ module IcandidCollector
           end
         end
       end
+      @logger.debug ("number of selected files to process: #{files.uniq.size}")
       files.uniq
     end
 
@@ -275,7 +301,7 @@ module IcandidCollector
 
         #   pp data
 
-        # @logger.debug(" options #{ options }")
+        # @logger.debug(" options:")
         # @logger.debug("parse_data rules_ng.run #{ rule_set }")
         
         rules_ng.run( rule_set[:rs_records], data, output, options )
@@ -289,7 +315,8 @@ module IcandidCollector
         @logger.error("#{ e.message  }")
         @logger.error("#{ e.backtrace.inspect   }")
         @logger.error( "HELP, HELP !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        raise e
+
+        raise DataCollector::InputError, "Error while parsing file #{file}"
         exit
       end
     end
@@ -300,12 +327,12 @@ module IcandidCollector
                     headers['Content-Type'].split(';').first
                   else
                     @logger.debug "No Header content-type available"
-                    MIME::Types.of(filename_from(headers)).first.content_type
+                    MIME::Types.of(filename_from(headers)).first&.content_type
                   end
         return file_type
     end
 
-    def get_filename(headers)
+    def filename_from(headers)
       filename = if headers.include?('Content-Disposition')
                     content_disposition_hash = Hash[  headers['Content-Disposition'].delete('\\"').split(';').map { |e| e.strip.split('=', 2) } ]
                     if content_disposition_hash.include?('filename')
