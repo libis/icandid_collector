@@ -98,7 +98,10 @@ begin
         ingest_data: @icandid_config.ingest_data
     }
 
-    parse_recent_queries(options: options)
+    unless @icandid_config.config[:source_records_dir]  =~ /\/backlog(\/|$)/        
+        parse_recent_queries(options: options)
+    end
+    
     parse_backlog_queries(options: options)
     
     @icandid_config.queries_to_process.map! do |query|

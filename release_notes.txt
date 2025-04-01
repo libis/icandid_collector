@@ -23,3 +23,8 @@ VERSION_TAG
 
 ## v3.1_20250207 ##
 => vlaamsparlement_download / vlaamsparlement_parser
+
+## v3.1_20250325 ##
+=> extra check ensuring that the start_date is not later than today
+=> extra check for duplicate internal IDs in query
+=> tiktok optimisations

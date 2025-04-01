@@ -81,6 +81,18 @@ module IcandidCollector
             @logger.error( data )
             raise "429 Too Many Requests"
           end
+        elsif  /^Unable to process received status code = 500.*/ =~ e.message
+          pp "@retries #{@retries}"
+          pp "number_of_retries #{@number_of_retries}"
+          if @retries < @number_of_retries
+            @retries += 1
+            @logger.error ("Wait 30 seconds and try Again ==> number_of_retries:#{@retry_count}")
+            sleep 30
+            collect_data_from_uri(url: url,  options: options )
+          else
+            @logger.error(  e.message )
+            raise e.message
+          end
         else         
           raise e.message
         end
@@ -197,6 +209,8 @@ module IcandidCollector
         options[:config] =  icandid_config.config()
         options[:ingest_data] =  icandid_config.ingest_data()
 
+
+
         @logger.info ("Start parsing using rule_set: #{ icandid_config.config[:rule_set]}")
         icandid_config.config[:nbr_created_records] = 0
         files.each_with_index do |source_file, index| 
@@ -243,7 +257,7 @@ module IcandidCollector
       select_files_from_source_records_dir(
         source_records_dir:       icandid_config.config[:source_records_dir].strip,
         source_file_name_pattern: icandid_config.config[:source_file_name_pattern].strip,
-        last_parsing_datetime:    icandid_config.config[:query][:last_parsing_datetime].strip
+        last_parsing_datetime:    icandid_config.config[:query][:last_parsing_datetime]
       )
     end
 
@@ -251,7 +265,7 @@ module IcandidCollector
      
       files = []
       unless icandid_config.config[:query][:last_parsing_datetime].nil?
-        last_parsing_datetime = Date.parse( icandid_config.config[:query][:last_parsing_datetime] )
+        last_parsing_datetime = Date.parse( icandid_config.config[:query][:last_parsing_datetime].strip )
       end
 
       @logger.debug ("Select files from: #{source_records_dir}/*")
@@ -264,6 +278,7 @@ module IcandidCollector
       end
 
       source_files.each do |source_file| 
+
         if File.directory?( source_file )
           unless source_records_dir =~ /\/\*\*\//
             if source_file =~ /\/processed(\/|$)/
@@ -298,7 +313,7 @@ module IcandidCollector
         data = input.from_uri("file://#{ file }", {} )
         
         options[:file] = file
-
+        options[:file_created_at] = File.mtime(file).to_s
         #   pp data
 
         # @logger.debug(" options:")

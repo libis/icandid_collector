@@ -3,6 +3,9 @@ require 'data_collector'
 require "iso639"
 require_relative 'basic_schema'
 
+# @tiktokusers = {}
+# prevent request to tiktok API if user already exists in this Hash
+
 @tiktokusers = {}
 
 RULE_SET_v0_1 = {
@@ -70,7 +73,6 @@ RULE_SET_v0_1 = {
 
             rules_ng.run(RULE_SET_v0_1[:rs_record_data], d, out, o)
             rdata.merge!(out.data)
-
             rdata[:creator] = rdata[:author] = rdata[:sender] 
 
             if rdata[:inLanguage].nil?
@@ -117,50 +119,17 @@ RULE_SET_v0_1 = {
         sender: {'$.username' => lambda { |d,o| 
 
             user = @tiktokusers[d]
-
             if user.nil?
                 url = "https://open.tiktokapis.com/v2/research/user/info/?fields=display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count"
-                
-                options = {
-                    bearer_token: o[:auth][:bearer_token],
-                    method: o[:method],
-                    body:   JSON.generate( {"username": d } )
-                }
-   
-                icandid_input = IcandidCollector::Input.new( :icandid_config => @icandid_config )
-                user_data = icandid_input.collect_data_from_uri(url: url,  options: options )
-=begin
-{"data"=>
-  {"bio_description"=>
-    "Créons le monde de demain 🌍\n" +
-    "➕ Juste ⚖️ ➕ Solidaire 🤝 ➕ Durable 🌱\n" +
-    "#psbelgique",
-   "display_name"=>"Parti Socialiste 🌹🇧🇪",
-   "follower_count"=>9276,
-   "following_count"=>48,
-   "is_verified"=>false,
-   "likes_count"=>84782,
-   "video_count"=>339,
-   "avatar_url"=>
-    "https://p77-sign-va.tiktokcdn.com/tos-maliva-avt-0068/c3a9e517a0067754131a1a51399534ca~c5_168x168.jpeg?x-expires=1701432000&x-signature=2FFBehiAmlcnOszxhGXjfSwRVGo%3D"},
- "error"=>
-  {"code"=>"ok",
-   "message"=>"",
-   "log_id"=>"202311291237181C7EF703CA61E7020BB9"}}
-=end
-                unless user_data.nil? || user_data["data"].nil? || user_data["error"]["code"] != "ok"
-                    user = { 
+
+                user = { 
                         :@id         => d,
                         :identifier => {
                                 :@type  => "PropertyValue",
                                 :name   => "verified",
                                 :@id    => "tiktok_verified_true",
-                                :value  => user_data["data"]["is_verified"]
                             },
-                        :@type       => "Organization",
-                        :description => user_data["data"]["bio_description"],
-                        :name        => user_data["data"]["display_name"],
-                        :logo        => user_data["data"]["avatar_url"],
+                        :@type       => "Person",
                         :sameAs      => "https://www.tiktok.com/@#{d}",
                         :memberOf    => {
                             :@type => "OrganizationRole",
@@ -174,20 +143,71 @@ RULE_SET_v0_1 = {
                         }
                     } 
 
+
+
+
+
+                pp "Bearer token: #{o[:config][:auth][:bearer_token]}"
+                pp "username: #{d}"
+                
+                options = {
+                    bearer_token: o[:config][:auth][:bearer_token],
+                    method: "POST",
+                    body:   JSON.generate( {"username": d } )
+                }
+                begin
+                    icandid_input = IcandidCollector::Input.new( :icandid_config => @icandid_config )
+                    user_data = icandid_input.collect_data_from_uri(url: url,  options: options )
+
+                rescue RuntimeError => e
+                    if error_400 = e.message.match(/^Unable to process received status code = 400 error=(.*)/i).captures.first
+                        error_400 = JSON.parse( error_400.strip )
+                        pp error_400["error"]["code"]
+                        pp error_400["error"]["message"]
+                        user[:description] = error_400["error"]["message"]
+                    end
+                rescue StandardError => e
+                    pp e.message
+                    halt; e.message
+                end
+
+                unless user_data.nil? || user_data["data"].nil? || user_data["error"]["code"] != "ok"
+                    user[:identifier][:value] = user_data["data"]["is_verified"]
+                    user[:description] = user_data["data"]["bio_description"]
+                    user[:name] = user_data["data"]["display_name"]
+                    user[:logo] = user_data["data"]["avatar_url"]
+
+
                     if user_data["data"]["is_verified"]
                         user[:memberOf][:roleName] << "verified user"
                     end
-=begin        
+
                     # => count : It is a snapshots - date must be mentions if added to the data
                     user_data["interactionStatistic"] = []
                     unless d["likes_count"].nil?
-                        user_data["interactionStatistic"] <<  { 
-                            "@type": "InteractionCounter",
-                            "interactionType": "https://schema.org/LikeAction",
-                            "userInteractionCount": d["likes_count"]
+                        user[:interactionStatistic] <<  { 
+                            :@type                => "InteractionCounter",
+                            :interactionType      => "https://schema.org/LikeAction",
+                            :userInteractionCount => d["likes_count"],
+                            :endTime              => Time.at().strftime("%Y-%m-%dT%H:%M:%SZ")
                         }
                     end
-=end 
+                    unless d["video_count"].nil?
+                        user[:interactionStatistic] <<  { 
+                            :@type                => "InteractionCounter",
+                            :interactionType      => "https://schema.org/CommunicateAction",
+                            :userInteractionCount => d["video_count"],
+                            :endTime              => Time.at().strftime("%Y-%m-%dT%H:%M:%SZ")
+                        }
+                    end
+                    unless d["follower_count"].nil?
+                        user[:interactionStatistic] <<  { 
+                            :@type                => "InteractionCounter",
+                            :interactionType      => "https://schema.org/FollowAction",
+                            :userInteractionCount => d["follower_count"],
+                            :endTime              => Time.at().strftime("%Y-%m-%dT%H:%M:%SZ")
+                        }
+                    end                    
 
                     @tiktokusers[d] = user
                 end                
@@ -221,32 +241,36 @@ RULE_SET_v0_1 = {
             rdata = []
             unless d["view_count"].nil?
                 rdata <<  { 
-                    "@type": "InteractionCounter",
-                    "interactionType": "https://schema.org/ViewAction",
-                    "userInteractionCount": d["view_count"]
+                    :@type                => "InteractionCounter",
+                    :interactionType      => "https://schema.org/ViewAction",
+                    :userInteractionCount => d["view_count"],
+                    :endTime              => Time.parse(o[:file_created_at]).strftime("%Y-%m-%dT%H:%M:%SZ")
                 }
             end
             unless d["like_count"].nil?
                 rdata <<  { 
-                    "@type": "InteractionCounter",
-                    "interactionType": "https://schema.org/LikeAction",
-                    "userInteractionCount": d["like_count"]
+                    :@type                => "InteractionCounter",
+                    :interactionType      => "https://schema.org/LikeAction",
+                    :userInteractionCount => d["like_count"],
+                    :endTime              => Time.parse(o[:file_created_at]).strftime("%Y-%m-%dT%H:%M:%SZ")
                 }
             end
             unless d["share_count"].nil?
                 rdata <<  { 
-                    "@type": "InteractionCounter",
-                    "interactionType": "https://schema.org/ShareAction",
-                    "userInteractionCount": d["share_count"]
+                    :@type                => "InteractionCounter",
+                    :interactionType      => "https://schema.org/ShareAction",
+                    :userInteractionCount => d["share_count"],
+                    :endTime              => Time.parse(o[:file_created_at]).strftime("%Y-%m-%dT%H:%M:%SZ")
                 }
             end
             unless d["comment_count"].nil?
                 rdata <<  { 
-                    "@type": "InteractionCounter",
-                    "interactionType": "https://schema.org/CommentAction",
-                    "userInteractionCount": d["comment_count"]
+                    :@type                => "InteractionCounter",
+                    :interactionType      => "https://schema.org/CommentAction",
+                    :userInteractionCount => d["comment_count"],
+                    :endTime              => Time.parse(o[:file_created_at]).strftime("%Y-%m-%dT%H:%M:%SZ")
                 }
-            end            
+            end     
             rdata 
         } },
         locationCreated: { "$.region_code" =>  lambda { |d,o| 

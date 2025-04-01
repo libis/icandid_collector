@@ -68,6 +68,7 @@ def process_backlog_queries(icandid_config)
 
         icandid_config.queries_to_process.each.with_index() do |query, index|
 
+            @logger.info ("Download records for query: #{ query[:query][:id] } (#{ query[:query][:name] }) [ #{query[:internal_collector_id] } ]")
             icandid_config.config[:query] = query    
            
             if query[:backlog].nil? || query[:backlog][:completed]
@@ -86,8 +87,8 @@ def process_backlog_queries(icandid_config)
 
             url = icandid_config.config[ options[:download_url_prop].to_sym ]
 
-            query[:query][:value]["start_date"] = icandid_config.config[:start_date]
-            query[:query][:value]["end_date"]   = icandid_config.config[:end_date]
+            query[:query][:value][:start_date] = icandid_config.config[:start_date]
+            query[:query][:value][:end_date]   = icandid_config.config[:end_date]
 
             until url.nil?
 
@@ -97,13 +98,13 @@ def process_backlog_queries(icandid_config)
                 process_query(icandid_config: icandid_config, query: query, options: options)
 
                 options[:page] = 1
-                query[:backlog][:current_process_url] = nil
+                query[:backlog][:current_process_url] = nil 
 
                 icandid_config.update_query_config
                 icandid_config.prepare_query(query: query, options: options)
 
-                query[:query][:value]["start_date"] = icandid_config.config[:start_date]
-                query[:query][:value]["end_date"]   = icandid_config.config[:end_date]
+                query[:query][:value][:start_date] = icandid_config.config[:start_date]
+                query[:query][:value][:end_date]   = icandid_config.config[:end_date]
 
                 url = icandid_config.config[ options[:download_url_prop].to_sym ]
 
@@ -116,8 +117,10 @@ def process_backlog_queries(icandid_config)
             icandid_config.config[:query] = query  
 
             icandid_config.update_query_config 
-            
+            icandid_config.update_config_with_query_data( query: query, options: options )
 
+            @logger.debug ("Download for query: #{ query[:query] } completed")
+            
         end
     end
 end
@@ -129,18 +132,20 @@ def process_query(icandid_config: nil, query: nil, options: {})
         if icandid_config.config[ :rule_set].nil?
             raise "rule_set is required to parse file"
         else
-            rule_set = icandid_config.config[ :rule_set].constantize 
+            rule_set = icandid_config.config[:rule_set].constantize 
         end
 
         icandid_config.ingest_data[:dataset][:@id]  = query[:query][:id]
         icandid_config.ingest_data[:dataset][:name] = query[:query][:name].gsub(/_/," ").capitalize()
 
-        options[:prefixid] = "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }",
+        options[:prefixid] = "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }"
+
 
         icandid_config.update_config_with_query_data( query: query, options: options )
 
-        url = icandid_config.config[:video_url]
+        url = icandid_config.config[ options[:download_url_prop].to_sym ]
                 
+        @logger.debug ("Start Download for query: #{ query[:query] } ")
         @logger.info ("Start Download #{options[:collection_type]} query: #{ query[:query][:name] } ")
         @logger.info ("Start Download source_records_dir: #{ icandid_config.config[:source_records_dir] } ")
 
@@ -150,6 +155,8 @@ def process_query(icandid_config: nil, query: nil, options: {})
                 method: icandid_config.config[:method],
                 body:   JSON.generate( query[:query][:value] )
             }
+            
+            @logger.debug ("Download Download for query: #{ query[:query] } ")
 
             icandid_input = IcandidCollector::Input.new( :icandid_config => icandid_config)
             data = icandid_input.collect_data_from_uri(url: url,  options: input_options )
@@ -168,26 +175,26 @@ def process_query(icandid_config: nil, query: nil, options: {})
             end
 
             if  output["has_more"].first
-                query[:query][:value]["search_id"] = output["search_id"].first
-                query[:query][:value]["cursor"] = output["cursor"].first
-
+                query[:query][:value][:search_id] = output["search_id"].first
+                query[:query][:value][:cursor] = output["cursor"].first
                 icandid_config.update_query_config
 
                 output.clear
-
-                icandid_config.update_config_with_query_data( query: query, options: options )
-                url = icandid_config.config[:video_url]
+                url = icandid_config.config[ options[:download_url_prop].to_sym ]
             else
-                query[:query][:value].delete("search_id")
-                query[:query][:value].delete("cursor")
-                query[:query][:value].delete("start_date")
-                query[:query][:value].delete("end_date")
+                query[:query][:value][:search_id] = ''
+                query[:query][:value][:cursor] = 0
+                query[:query][:value][:start_date] = ''
+                query[:query][:value][:end_date] = ''
+
+                icandid_config.update_query_config
                 # pp "HAS MORE ?"
                 # pp output["has_more"]
                 url = nil
             end
             
         end
+        @logger.debug ("Download for query: #{ query[:query] } completed")
     end
 end
 
@@ -209,13 +216,13 @@ begin
     
     icandid_config.queries_to_process.map!.with_index() do |query, index|
         query[:query][:value] = query[:query][:value].is_a?(String) ? JSON.parse(  query[:query][:value]  ) : query[:query][:value]
-        query[:query][:value]["max_count"] = icandid_config.config[:records_per_page]
-        query[:query][:value]["cursor"] = 0
-        query[:query][:value]["search_id"] = ""
+        query[:query][:value][:max_count] = icandid_config.config[:records_per_page]
+        query[:query][:value][:cursor] = (query[:query][:value][:cursor].nil? || query[:query][:value][:search_id].nil?) ? 0 : query[:query][:value][:cursor]
+        query[:query][:value][:search_id] = query[:query][:value][:search_id].nil? ? "" : query[:query][:value][:search_id]
         query
     end
 
-    process_recent_queries(icandid_config)
+    #process_recent_queries(icandid_config)
     process_backlog_queries(icandid_config)
 
 end
