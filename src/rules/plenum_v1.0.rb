@@ -38,6 +38,9 @@ RULE_SET_v1_0 = {
     },
     rs_record: {
         record: { "$.data" => lambda { |d,o| 
+            if d["text"] =~ /{"detail":"No session found with id .*"}/
+                return nil
+            end
 
             rdata = {}
             out = DataCollector::Output.new
