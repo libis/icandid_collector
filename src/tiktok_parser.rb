@@ -37,7 +37,7 @@ def parse_queries(options: {})
         end
 
         options[:type] = "Message"
-
+        options[:tiktokusers] = {}
 
         @icandid_config.queries_to_process.each do |query|
             @icandid_config.config[:query] = query
@@ -57,6 +57,7 @@ def parse_queries(options: {})
             @logger.info ("Start parsing source_file_name_pattern: #{@icandid_config.config[:source_file_name_pattern]} ")
 
             icandid_input.process_files( options: options  )
+
             @logger.info ("Start parsing next NEXT NEXT ")
 
         end
@@ -81,9 +82,9 @@ begin
 
     @icandid_config = IcandidCollector::Configs.new( :config => config , :ingest_data => INGEST_DATA) 
     
-    @logger.info ("Start downloading using config: #{ File.join( config[:config_path] , "config.yml") }")
+    @logger.info ("Start parsing using config: #{ File.join( config[:config_path] , "config.yml") }")
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    @logger.info ("Download for queries in : #{File.join( @icandid_config.query_config.path , @icandid_config.query_config.name) }")
+    @logger.info ("Parsing for queries in : #{File.join( @icandid_config.query_config.path , @icandid_config.query_config.name) }")
     
     @icandid_config.queries_to_process.map! do |query|
         query[:query][:value] = query[:query][:value].is_a?(String) ? JSON.parse(  query[:query][:value]  ) : query[:query][:value]
@@ -99,7 +100,7 @@ begin
     }
 
     unless @icandid_config.config[:source_records_dir]  =~ /\/backlog(\/|$)/        
-        parse_recent_queries(options: options)
+        # parse_recent_queries(options: options)
     end
     
     parse_backlog_queries(options: options)
@@ -112,3 +113,4 @@ begin
     @icandid_config.update_query_config
 
 end
+

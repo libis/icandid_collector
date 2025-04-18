@@ -44,6 +44,10 @@ RULE_SET_v0_1 = {
     },
     rs_records: {
         records: { "$.data." => [ lambda { |d,o| 
+
+            puts "RULES RULES RULES records o[:tiktokusers] #{o[:tiktokusers].keys.size}"
+            @tiktokusers = o[:tiktokusers]
+
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v0_1[:rs_record], d, out, o)
 
@@ -52,17 +56,19 @@ RULE_SET_v0_1 = {
                 pp "MAYDAY_MAYDAY"
                 pp out
             end
-            
+           
             out[:record]
-
-        } ] }
+        } ] },
+        options: { "$.data." => [ lambda { |d,o| 
+                o[:tiktokusers] = @tiktokusers
+                o
+        }] }
     },
     rs_record: {
         record: { "$.videos" => lambda { |d,o| 
 
             rdata = {}
 
-            #pp d
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v0_1[:rs_id], d, out, o)
             o[:id] = out[:id].first
@@ -96,79 +102,108 @@ RULE_SET_v0_1 = {
     },
     
     rs_record_data: {
-
-=begin
-  "like_count"=>22,
- "music_id"=>7291785472958351362,
- "username"=>"psbelgique",
- "video_description"=>
-  "Nous sommes pour l’interdiction de la fessée et de toute forme de violence physique ou psychologique  envers les enfants, malheureusement le MR bloque.",
- "hashtag_names"=>[],
- "create_time"=>1700591646,
- "id"=>7303985428648987936,
- "region_code"=>"BE",
- "share_count"=>0,
- "view_count"=>6,
- "voice_to_text"=>
-  "Est-ce qu'on a vraiment envie d'être le dernier pays d'Europe à euh. Ne pas interdire la violence comme méthode éducative ? Nous avons déposé 1 proposition justement pour interdire aux parents le recours systématique à la violence, qu'elle soit psychologique ou physique des parents envers leur enfant. Alors évidemment, dans la majorité, certains ne l'entendent pas de cette oreille. Il y a pas de majorité à l'heure actuelle pour le voter.",
- "comment_count"=>1
-=end
-
         text:   '$.voice_to_text',
         name:   '$.video_description',
         sender: {'$.username' => lambda { |d,o| 
-
             user = @tiktokusers[d]
-            if user.nil?
-                url = "https://open.tiktokapis.com/v2/research/user/info/?fields=display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count"
 
+            #pp "search user in @tiktokusers #{d}"
+            #pp "user: #{user}"
+
+            if user.nil?
                 user = { 
-                        :@id         => d,
-                        :identifier => {
-                                :@type  => "PropertyValue",
-                                :name   => "verified",
-                                :@id    => "tiktok_verified_true",
+                    :@id         => d,
+                    :identifier => {
+                            :@type  => "PropertyValue",
+                            :name   => "verified",
+                            :@id    => "tiktok_verified_true",
+                        },
+                    :@type       => "Person",
+                    :sameAs      => "https://www.tiktok.com/@#{d}",
+                    :memberOf    => {
+                        :@type => "OrganizationRole",
+                        :roleName => ["user"],
+                        :@id => "iCANDID_tiktok_PERSON_ORGANIZATION_ROLE_#{d.upcase}",
+                        :memberOf => {
+                            :@type => "Organization",
+                            :name => "TikTok",
+                            :@id => "iCANDID_ORGANIZATION_TIKTOK"
+                        }
+                    }
+                } 
+
+                user[:description] = "Couldn't find this account [#{d}]"
+                user[:name] = "unknown for #{d}"
+
+                use_screenscrape = true
+
+                unless use_screenscrape
+                    url = "https://open.tiktokapis.com/v2/research/user/info/?fields=display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count"
+
+                    # pp "Bearer token: #{o[:config][:auth][:bearer_token]}"
+                    # pp "username: #{d}"
+                    
+                    options = {
+                        bearer_token: o[:config][:auth][:bearer_token],
+                        method: "POST",
+                        body:   JSON.generate( {"username": d } )
+                    }
+                    begin
+                        icandid_input = IcandidCollector::Input.new( :icandid_config => @icandid_config )
+                        user_data = icandid_input.collect_data_from_uri(url: url,  options: options )
+
+                    rescue RuntimeError => e
+                        if error_400 = e.message.match(/^Unable to process received status code = 400 error=(.*)/i).captures.first
+                            error_400 = JSON.parse( error_400.strip )
+                            pp error_400["error"]["code"]
+                            pp error_400["error"]["message"]
+                            user[:description] = error_400["error"]["message"]
+                        end
+                    rescue StandardError => e
+                        pp "Error: #{e.message}"
+                        pp e.message
+                        halt
+                        pp e.backtrace
+                        exit
+                    end
+                end
+
+                if use_screenscrape
+                    http = HTTP
+                    url = "https://www.tiktok.com/@#{d}"
+                    http_response = http.follow.get(url, {})
+                    data = http_response.body.to_s
+                    raw_data = Nokogiri::HTML(data)
+                    jdata = JSON.parse( raw_data.xpath("/html/body/script[@id='__UNIVERSAL_DATA_FOR_REHYDRATION__']").text )
+                    # pp jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"]["userInfo"]["user"].keys
+                    # pp "shareMeta => #{jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"]["shareMeta"]}"
+                    
+                    if jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"].has_key?("userInfo")
+                        screenscrape_user_data = jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"]["userInfo"]
+                        user_data = {
+                            "data" => {
+                                "avatar_url"      => screenscrape_user_data["user"]["avatar_url"],
+                                "display_name"    => screenscrape_user_data["user"]["nickname"],
+                                "is_verified"     => screenscrape_user_data["user"]["verified"],
+                                "bio_description" => screenscrape_user_data["user"]["signature"],   
+                                "likes_count"     => screenscrape_user_data["stats"]["heartCount"],
+                                "video_count"     => screenscrape_user_data["stats"]["videoCount"],
+                                "following_count" => screenscrape_user_data["stats"]["followingCount"],
+                                "follower_count"  => screenscrape_user_data["stats"]["followerCount"]
                             },
-                        :@type       => "Person",
-                        :sameAs      => "https://www.tiktok.com/@#{d}",
-                        :memberOf    => {
-                            :@type => "OrganizationRole",
-                            :roleName => ["user"],
-                            :@id => "iCANDID_tiktok_PERSON_ORGANIZATION_ROLE_#{d.upcase}",
-                            :memberOf => {
-                                :@type => "Organization",
-                                :name => "TikTok",
-                                :@id => "iCANDID_ORGANIZATION_TIKTOK"
+                            "error" => {
+                                "code" => "ok"
                             }
                         }
-                    } 
-
-
-
-
-
-                pp "Bearer token: #{o[:config][:auth][:bearer_token]}"
-                pp "username: #{d}"
-                
-                options = {
-                    bearer_token: o[:config][:auth][:bearer_token],
-                    method: "POST",
-                    body:   JSON.generate( {"username": d } )
-                }
-                begin
-                    icandid_input = IcandidCollector::Input.new( :icandid_config => @icandid_config )
-                    user_data = icandid_input.collect_data_from_uri(url: url,  options: options )
-
-                rescue RuntimeError => e
-                    if error_400 = e.message.match(/^Unable to process received status code = 400 error=(.*)/i).captures.first
-                        error_400 = JSON.parse( error_400.strip )
-                        pp error_400["error"]["code"]
-                        pp error_400["error"]["message"]
-                        user[:description] = error_400["error"]["message"]
+                    else
+                        user_data = {
+                            "error" => {
+                                "code" => "user not found ?"
+                            }
+                        }
                     end
-                rescue StandardError => e
-                    pp e.message
-                    halt; e.message
+
+
                 end
 
                 unless user_data.nil? || user_data["data"].nil? || user_data["error"]["code"] != "ok"
@@ -177,40 +212,39 @@ RULE_SET_v0_1 = {
                     user[:name] = user_data["data"]["display_name"]
                     user[:logo] = user_data["data"]["avatar_url"]
 
-
                     if user_data["data"]["is_verified"]
                         user[:memberOf][:roleName] << "verified user"
                     end
-
                     # => count : It is a snapshots - date must be mentions if added to the data
-                    user_data["interactionStatistic"] = []
-                    unless d["likes_count"].nil?
-                        user[:interactionStatistic] <<  { 
+                    user[:interactionStatistic] = []
+                    unless user_data["data"]["likes_count"].nil?
+                        user[:interactionStatistic] << { 
                             :@type                => "InteractionCounter",
                             :interactionType      => "https://schema.org/LikeAction",
-                            :userInteractionCount => d["likes_count"],
-                            :endTime              => Time.at().strftime("%Y-%m-%dT%H:%M:%SZ")
+                            :userInteractionCount => user_data["data"]["likes_count"],
+                            :endTime              => Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
                         }
                     end
-                    unless d["video_count"].nil?
+                    unless user_data["data"]["video_count"].nil?
                         user[:interactionStatistic] <<  { 
                             :@type                => "InteractionCounter",
-                            :interactionType      => "https://schema.org/CommunicateAction",
-                            :userInteractionCount => d["video_count"],
-                            :endTime              => Time.at().strftime("%Y-%m-%dT%H:%M:%SZ")
+                               :interactionType      => "https://schema.org/CommunicateAction",
+                            :userInteractionCount => user_data["data"]["video_count"],
+                            :endTime              => Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
                         }
                     end
-                    unless d["follower_count"].nil?
+                    unless user_data["data"]["follower_count"].nil?
                         user[:interactionStatistic] <<  { 
                             :@type                => "InteractionCounter",
                             :interactionType      => "https://schema.org/FollowAction",
-                            :userInteractionCount => d["follower_count"],
-                            :endTime              => Time.at().strftime("%Y-%m-%dT%H:%M:%SZ")
+                            :userInteractionCount => user_data["data"]["follower_count"],
+                            :endTime              => Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
                         }
                     end                    
+                end  
 
-                    @tiktokusers[d] = user
-                end                
+                @tiktokusers[d] = user              
+
             end
             user
         }},
@@ -229,6 +263,8 @@ RULE_SET_v0_1 = {
             "https://www.tiktok.com/@#{d["username"]}/video/#{d["id"]}"
         }},
         datePublished: {'$.create_time' =>  lambda { |d,o| 
+            #pp "datePublished: #{d}"
+            #pp "datePublished: #{ Time.at(d).strftime("%Y-%m-%d") }"
             Time.at(d).strftime("%Y-%m-%d")
         }},
         associatedMedia: { "$.music_id" => lambda { |d,o| 

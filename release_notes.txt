@@ -28,3 +28,6 @@ VERSION_TAG
 => extra check ensuring that the start_date is not later than today
 => extra check for duplicate internal IDs in query
 => tiktok optimisations
+
+## v3.1_20250402 ##
+=> update options in rules while parsing

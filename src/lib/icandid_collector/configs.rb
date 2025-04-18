@@ -173,9 +173,6 @@ module IcandidCollector
 
     def get_queries_to_process( )
 
-
-
-
       queries_to_process = @query_config[:queries].map { |q| 
         unless q.has_key?(:internal_collector_id) && ! q[:internal_collector_id].nil?
           q[:internal_collector_id] = rand(36**10).to_s(36)
@@ -342,6 +339,28 @@ module IcandidCollector
       return Time.parse("2000/01/01")
     end
   
+=begin
+    def handle_current_process_config( query: {}, options: {})
+    begin
+      pp "====================================>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+      pp query
+      unless query[:current_process_url].nil?
+        @logger.warn ("Previous download [#{ options[:collection_type] }] not finished properly. current_process_url still available in query config #{ @config[:query][:query][:id]} : #{ options[:internal_collector_id] }") 
+        @config[ options[:download_url_prop].to_sym ] = query[:current_process_url]
+        unless query[:current_process_periode].nil?
+          @config[:start_date] = query[:current_process_periode][:current_start_date]
+          @config[:end_date]   = query[:current_process_periode][:current_end_date]
+        end
+      end
+    rescue Exception => e
+      @logger.error ("Error in handle_current_process_config: #{e.message}")
+      @logger.error ("Error in handle_current_process_config [query]: #{query}")
+      @logger.error ("Error in handle_current_process_config [options]: #{options}")
+      exit();
+    end 
+  end 
+=end
+
     def update_query_config
       begin
         tmp_query_parameters = [:current_process_periode, :current_process_url]
@@ -396,7 +415,7 @@ module IcandidCollector
         @logger.debug ("prepare_query with url parameter: #{  options[:download_url_prop] } ")
         
         if options[:collection_type] == "backlog"
-          @logger.warn ("Previous backlog download not finished properly. current_process_url still available in query config #{ @config[:query][:query][:id]}")
+          @logger.warn ("Previous backlog download not finished properly. current_process_url still available in query config #{ @config[:query][:query][:id]}  : #{ query[:query][:internal_collector_id] }") 
           unless query[:backlog].nil?
             unless query[:backlog][:current_process_url].nil?
               update_config_with_query_data( query: query, options: options )

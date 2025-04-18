@@ -13,6 +13,7 @@ module IcandidCollector
       @total_nr_parsed_files = 0
       @retries = 0
       @number_of_retries = 0
+      @parsing_options = {}
     end
 
     def collect_data_from_uri ( url: nil, options: {} )
@@ -206,18 +207,17 @@ module IcandidCollector
         if files.empty?
           @logger.warn ("No files to process in #{ icandid_config.config[:source_records_dir] }")        
         end
-        options[:config] =  icandid_config.config()
-        options[:ingest_data] =  icandid_config.ingest_data()
 
-
+        @parsing_options = options
+        @parsing_options[:config] =  icandid_config.config()
+        @parsing_options[:ingest_data] =  icandid_config.ingest_data()
 
         @logger.info ("Start parsing using rule_set: #{ icandid_config.config[:rule_set]}")
         icandid_config.config[:nbr_created_records] = 0
         files.each_with_index do |source_file, index| 
-          parse_data( file: source_file, options: options, rule_set: icandid_config.config[:rule_set].constantize )
+          parse_data( file: source_file, options:  @parsing_options, rule_set: icandid_config.config[:rule_set].constantize )
           @total_nr_parsed_files =  @total_nr_parsed_files + 1
           output.data[:records] = [output.data[:records]] unless output.data[:records].is_a?(Array)
-
           one_record_output = DataCollector::Output.new
 
           # @logger.debug ("process data output.data #{ output.data } ")
@@ -237,7 +237,7 @@ module IcandidCollector
               one_record_output.clear
             end
           end
-          @logger.warn ("nbr_created_records nbr_created_recordsnbr_created_recordsin #{ icandid_config.config[:nbr_created_records] }")  
+          @logger.warn ("nbr_created_records #{ icandid_config.config[:nbr_created_records] }")  
           if source_file =~ /\/new\//
             @logger.debug ("Move file to processed-path")
             target_file = source_file.gsub('/new/', '/processed/')
@@ -280,7 +280,7 @@ module IcandidCollector
       source_files.each do |source_file| 
 
         if File.directory?( source_file )
-          unless source_records_dir =~ /\/\*\*\//
+          unless source_records_dir =~ /\/\*\*(\/|$)/
             if source_file =~ /\/processed(\/|$)/
               @logger.debug ("Do not select files with 'processed' in the pathname: #{source_file}")
               next
@@ -312,15 +312,21 @@ module IcandidCollector
         #output = DataCollector::Output.new
         data = input.from_uri("file://#{ file }", {} )
         
-        options[:file] = file
-        options[:file_created_at] = File.mtime(file).to_s
+        @parsing_options = options
+        @parsing_options[:file] = file
+        @parsing_options[:file_created_at] = File.mtime(file).to_s
+
+ 
         #   pp data
 
         # @logger.debug(" options:")
         # @logger.debug("parse_data rules_ng.run #{ rule_set }")
         
-        rules_ng.run( rule_set[:rs_records], data, output, options )
+        rules_ng.run( rule_set[:rs_records], data, output, @parsing_options )
 
+        unless output[:options].nil?
+          @parsing_options = output[:options]
+        end
         # output.crush
         # @logger.debug("parse_data output  #{ output}")
         output
