@@ -272,13 +272,13 @@ module IcandidCollector
       @logger.debug ("Select files with last_parsing_datetime: #{last_parsing_datetime}")
       
       source_files = Dir["#{source_records_dir}/*"]
+
       unless icandid_config.config[:source_records_dir] =~ /\/processed(\/|$)/
         @logger.debug ("Do not select files with 'processed' in the pathname: #{source_records_dir}")
         source_files = source_files.filter { |source_file|  source_file !~ /\/processed(\/|$)/ }
       end
 
       source_files.each do |source_file| 
-
         if File.directory?( source_file )
           unless source_records_dir =~ /\/\*\*(\/|$)/
             if source_file =~ /\/processed(\/|$)/
@@ -313,6 +313,7 @@ module IcandidCollector
         data = input.from_uri("file://#{ file }", {} )
         
         @parsing_options = options
+        @parsing_options[:start_parsing] = Time.now
         @parsing_options[:file] = file
         @parsing_options[:file_created_at] = File.mtime(file).to_s
 
@@ -326,6 +327,7 @@ module IcandidCollector
 
         unless output[:options].nil?
           @parsing_options = output[:options]
+          @parsing_options[:start_parsing] = Time.now
         end
         # output.crush
         # @logger.debug("parse_data output  #{ output}")

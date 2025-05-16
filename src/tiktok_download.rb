@@ -159,12 +159,14 @@ def process_query(icandid_config: nil, query: nil, options: {})
             @logger.debug ("Download Download for query: #{ query[:query] } ")
 
             icandid_input = IcandidCollector::Input.new( :icandid_config => icandid_config)
-            data = icandid_input.collect_data_from_uri(url: url,  options: input_options )
+            data = icandid_input.collect_data_from_uri(url: url,  options: {input_options} )
 
             output = DataCollector::Output.new
 
             rules_ng.run( rule_set[:rs_filename], data, output, options )
+            options[:file_path] = File.join( icandid_config.config[:source_records_dir] )
             rules_ng.run( rule_set[:rs_next_value], data, output, options )
+
             
             unless output["filename"].nil?
                 filename = output["filename"].first

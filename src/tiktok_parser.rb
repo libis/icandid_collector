@@ -38,13 +38,13 @@ def parse_queries(options: {})
 
         options[:type] = "Message"
         options[:tiktokusers] = {}
-
+        
         @icandid_config.queries_to_process.each do |query|
             @icandid_config.config[:query] = query
             @icandid_config.ingest_data[:dataset][:@id]  = query[:query][:id]
             @icandid_config.ingest_data[:dataset][:name] = query[:query][:name].gsub(/_/," ").capitalize()
 
-            # options[:date] = ""
+            options[:download_video] = @icandid_config.config[:query][:download_video] 
 
             @icandid_config.update_config_with_query_data( query: query, options: options )    
 
@@ -74,8 +74,6 @@ begin
     @total_nr_parsed_records = 0    
     @icandid_utils  = IcandidCollector::Utils.new()
 
-
-
     config = {
         :config_path => File.join(ROOT_PATH, "./config/#{provider}")
     }
@@ -103,11 +101,11 @@ begin
         # parse_recent_queries(options: options)
     end
     
+
     parse_backlog_queries(options: options)
     
     @icandid_config.queries_to_process.map! do |query|
         query[:last_parsing_datetime] = start_processing
-
         query
     end
     @icandid_config.update_query_config
