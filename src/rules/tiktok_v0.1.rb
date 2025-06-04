@@ -1,7 +1,9 @@
 #encoding: UTF-8
 require 'data_collector'
 require "iso639"
+require "countries"
 require_relative 'basic_schema'
+require_relative 'language_helpers'
 
 # @tiktokusers = {}
 # prevent request to tiktok API if user already exists in this Hash
@@ -111,10 +113,19 @@ def get_comment_data_from_uri( d,o )
     #    "url": ""
     #},
 
-    pp comment_data.keys
 
-    if comment_data["comments"].empty?
-        @logger.error("No comments retrieved on #{comments_url} ")
+    if comment_data["comments"].nil?
+        @logger.warn("!! !! !! !! !! No comments retrieved for #{d} on URL  #{comments_url} ")
+        comment_data["comments"] = []
+        comment_data[:download_time] = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return comment_data
+    end
+
+    if comment_data["comments"].nil? || comment_data["comments"].empty?
+        @logger.warn("!! !! !! !! !! No comments retrieved for #{d} on URL  #{comments_url} ")
+        comment_data["comments"] = []
+        comment_data[:download_time] = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return comment_data
         # raise "empty comments Array for #{comments_url}"
     end
 
@@ -150,6 +161,10 @@ def get_comment_data_from_uri( d,o )
 
     o[:cursor] = 0
 
+    # intergrate "human" behavior (https://www.youtube.com/watch?v=p0mRIhK9seg&t=131s)
+    random_number = rand(1..5)
+    sleep random_number 
+
     return comment_data 
 
 end
@@ -164,6 +179,9 @@ def get_comment_data( d,o )
         o[:prefixid] = "#{o[:ingest_data][:prefixid]}_#{ o[:ingest_data][:provider][:@id].downcase }_#{ o[:ingest_data][:dataset][:@id].downcase }"
     end
 
+    #### TODO
+    # What if the file_path contains new or processed ????
+
     if comment_id.nil?
         file = File.join( o[:file_path], "comments", "#{o[:prefixid]}_#{item_id}.json" )
     else
@@ -177,7 +195,6 @@ def get_comment_data( d,o )
     else
         comment_data = get_comment_data_from_uri( d, o )
         
-
         icandid_output = IcandidCollector::Output.new( data: { data: comment_data}, icandid_config: o[:config])
         icandid_output.save_data_to_uri( uri: "file://#{file}" , options: {"content_type": "application/json"})
 
@@ -191,6 +208,7 @@ def get_comment_data( d,o )
 
         unless comment["reply_comment_total"].nil?
             if comment["reply_comment_total"] > 0
+
                 recursive_comment_data = get_comment_data(comment_ids, o )
                 comment["comments"] = recursive_comment_data["comments"]
             end
@@ -234,19 +252,23 @@ RULE_SET_v0_1 = {
                 o[:prefixid] = "#{o[:ingest_data][:prefixid]}_#{ o[:ingest_data][:provider][:@id].downcase }_#{ o[:ingest_data][:dataset][:@id].downcase }"
             end
 
+            #### TODO
+            # What if the file_path contains new or processed ????
+            
             file = File.join( o[:file_path], "users", "#{o[:prefixid]}_#{d}.json" )
 
             icandid_input = IcandidCollector::Input.new( :icandid_config => {} )
             data = icandid_input.collect_data_from_uri(url: "file://#{file}",  options: {} )
-
+            
+            #pp "TEST USERDATA 1"
             unless data.nil?
                 user_data = data["data"]
                 return user_data
             end
             
+            #pp "TEST USERDATA 2"
             unless o[:use_screen_scraping] # don't use screenscrape for users! It uses too much requests (API has a limit of 1000 requests per day)
                 url = "https://open.tiktokapis.com/v2/research/user/info/?fields=display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count"
-
 
                 pp " Don't use the API to collect userdata. API has a limit of 1000 requests per day !!!"
                 raise " Don't use the API to collect userdata. API has a limit of 1000 requests per day !!!"
@@ -283,19 +305,35 @@ RULE_SET_v0_1 = {
                 http = HTTP
                 url = "https://www.tiktok.com/@#{d}"
                 http_response = http.follow.get(url, {})
+             #   pp "TEST USERDATA 3"
+             #   pp "TEST #{url}"
                 data = http_response.body.to_s
                 raw_data = Nokogiri::HTML(data)
+                
+             #   pp "TEST USERDATA 4"
+                test_data =  raw_data.xpath("/html/body/script[@id='__UNIVERSAL_DATA_FOR_REHYDRATION__']")
+             #    pp "TEST USERDATA 5"
+                 test_text = test_data.text
+             #    pp "TEST USERDATA 6"
                 jdata = JSON.parse( raw_data.xpath("/html/body/script[@id='__UNIVERSAL_DATA_FOR_REHYDRATION__']").text )
+                
                 # pp jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"]["userInfo"]["user"].keys
                 # pp "shareMeta => #{jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"]["shareMeta"]}"
                 
+             #   pp "TEST USERDATA 7"
                 if jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"].has_key?("userInfo")
                     user_data = jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"]["userInfo"]
                 else
                     user_data = {
                         "error" => {
-                            "code" => "user not found ?"
-                        }
+                            "code" => "user not found for id: #{d}"
+                        },
+                        "user" => {
+                            "uniqueId" => d,
+                            "description" => "Couldn't find this account [#{d}]",
+                            "name" => "unknown for #{d}",
+                        },
+                        "stats" => {}
                     }
                 end
                 user_data[:download_time] = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -416,16 +454,22 @@ RULE_SET_v0_1 = {
             rules_ng.run(@rule_set_name[:rs_id], d, out, o)
             o[:id] = out[:id].first
 
+
+            if o[:ingest_data]["metaLanguage"] == "und" || o[:ingest_data]["metaLanguage"].nil?
+                o[:detectedLanguage] = @icandid_utils.languageDetection("#{d["voice_to_text"]} #{d["video_description"]}" , {language_detection_url:  o[:config][:language_detection_url]})
+            end
+
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
             rdata.merge!(out[:basic_schema].to_h)
             out.clear
+            o[:contextLanguage] = rdata["@context"]["@language"]
 
             rules_ng.run(@rule_set_name[:rs_record_data], d, out, o)
             rdata.merge!(out.data)
             rdata[:creator] = rdata[:author] = rdata[:sender] 
 
             if rdata[:inLanguage].nil?
-                langcode = rdata["@context"]["@language"]
+                langcode = o[:contextLanguage] 
                 rdata[:inLanguage] =  {
                     :@type         => "Language",
                     :@id           => Iso639[langcode].alpha2,
@@ -471,10 +515,10 @@ RULE_SET_v0_1 = {
                 }
             } 
 
-            user[:description] = "Couldn't find this account [#{user_id}]"
-            user[:name] = "unknown for #{user_id}"
-                
-            user[:identifier][:value] = d["user"]["verified"]
+            #user[:description] = "Couldn't find this account [#{user_id}]"
+            #user[:name] = "unknown for #{user_id}"
+            
+            user[:identifier][:value] = d["user"]["verified"] 
             user[:description] = d["user"]["signature"] 
             user[:name] = d["user"]["nickname"]
             user[:logo] = d["user"]["avatarThumb"]
@@ -509,154 +553,7 @@ RULE_SET_v0_1 = {
                 }
             end       
             user
-        }},
-=begin        
-        sender: {'$.username' => lambda { |d,o| 
-            user = @tiktokusers[d]
-
-            #pp "search user in @tiktokusers #{d}"
-            #pp "user: #{user}"
-
-            if user.nil?
-                user = { 
-                    :@id         => d,
-                    :identifier => {
-                            :@type  => "PropertyValue",
-                            :name   => "verified",
-                            :@id    => "tiktok_verified_true",
-                        },
-                    :@type       => "Person",
-                    :sameAs      => "https://www.tiktok.com/@#{d}",
-                    :memberOf    => {
-                        :@type => "OrganizationRole",
-                        :roleName => ["user"],
-                        :@id => "iCANDID_tiktok_PERSON_ORGANIZATION_ROLE_#{d.upcase}",
-                        :memberOf => {
-                            :@type => "Organization",
-                            :name => "TikTok",
-                            :@id => "iCANDID_ORGANIZATION_TIKTOK"
-                        }
-                    }
-                } 
-
-                user[:description] = "Couldn't find this account [#{d}]"
-                user[:name] = "unknown for #{d}"
-
-                unless o[:use_screen_scraping] # don't use screen scraping for comments! It uses too much requests (API has a limit of 1000 requests per day)
-                    url = "https://open.tiktokapis.com/v2/research/user/info/?fields=display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count"
-                    
-                    pp " Don't use the API to collect userdata. API has a limit of 1000 requests per day !!!"
-                    raise " Don't use the API to collect userdata. API has a limit of 1000 requests per day !!!"
-                    exit
-                    # pp "Bearer token: #{o[:config][:auth][:bearer_token]}"
-                    # pp "username: #{d}"
-                    
-                    # options = {
-                    #     bearer_token: o[:config][:auth][:bearer_token],
-                    #     method: "POST",
-                    #     body:   JSON.generate( {"username": d } )
-                    # }
-                    # begin
-                    #     icandid_input = IcandidCollector::Input.new( :icandid_config => @icandid_config )
-                    #     user_data = icandid_input.collect_data_from_uri(url: url,  options: options )
- 
-                    # rescue RuntimeError => e
-                    #     if error_400 = e.message.match(/^Unable to process received status code = 400 error=(.*)/i).captures.first
-                    #         error_400 = JSON.parse( error_400.strip )
-                    #         pp error_400["error"]["code"]
-                    #         pp error_400["error"]["message"]
-                    #         user[:description] = error_400["error"]["message"]
-                    #     end
-                    # rescue StandardError => e
-                    #     pp "Error: #{e.message}"
-                    #     pp e.message
-                    #     halt
-                    #     pp e.backtrace
-                    #     exit
-                    # end
-                end
-
-                if o[:use_screen_scraping] 
-                    http = HTTP
-                    url = "https://www.tiktok.com/@#{d}"
-                    http_response = http.follow.get(url, {})
-                    data = http_response.body.to_s
-                    raw_data = Nokogiri::HTML(data)
-                    jdata = JSON.parse( raw_data.xpath("/html/body/script[@id='__UNIVERSAL_DATA_FOR_REHYDRATION__']").text )
-                    # pp jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"]["userInfo"]["user"].keys
-                    # pp "shareMeta => #{jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"]["shareMeta"]}"
-                    
-                    if jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"].has_key?("userInfo")
-                        screenscrape_user_data = jdata["__DEFAULT_SCOPE__"]["webapp.user-detail"]["userInfo"]
-                        user_data = {
-                            "data" => {
-                                "avatar_url"      => screenscrape_user_data["user"]["avatar_url"],
-                                "display_name"    => screenscrape_user_data["user"]["nickname"],
-                                "is_verified"     => screenscrape_user_data["user"]["verified"],
-                                "bio_description" => screenscrape_user_data["user"]["signature"],   
-                                "likes_count"     => screenscrape_user_data["stats"]["heartCount"],
-                                "video_count"     => screenscrape_user_data["stats"]["videoCount"],
-                                "following_count" => screenscrape_user_data["stats"]["followingCount"],
-                                "follower_count"  => screenscrape_user_data["stats"]["followerCount"]
-                            },
-                            "error" => {
-                                "code" => "ok"
-                            }
-                        }
-                    else
-                        user_data = {
-                            "error" => {
-                                "code" => "user not found ?"
-                            }
-                        }
-                    end
-
-
-                end
-
-                unless user_data.nil? || user_data["data"].nil? || user_data["error"]["code"] != "ok"
-                    user[:identifier][:value] = user_data["data"]["is_verified"]
-                    user[:description] = user_data["data"]["bio_description"]
-                    user[:name] = user_data["data"]["display_name"]
-                    user[:logo] = user_data["data"]["avatar_url"]
-
-                    if user_data["data"]["is_verified"]
-                        user[:memberOf][:roleName] << "verified user"
-                    end
-                    # => count : It is a snapshots - date must be mentions if added to the data
-                    user[:interactionStatistic] = []
-                    unless user_data["data"]["likes_count"].nil?
-                        user[:interactionStatistic] << { 
-                            :@type                => "InteractionCounter",
-                            :interactionType      => "https://schema.org/LikeAction",
-                            :userInteractionCount => user_data["data"]["likes_count"],
-                            :endTime              => Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
-                        }
-                    end
-                    unless user_data["data"]["video_count"].nil?
-                        user[:interactionStatistic] <<  { 
-                            :@type                => "InteractionCounter",
-                               :interactionType      => "https://schema.org/CommunicateAction",
-                            :userInteractionCount => user_data["data"]["video_count"],
-                            :endTime              => Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
-                        }
-                    end
-                    unless user_data["data"]["follower_count"].nil?
-                        user[:interactionStatistic] <<  { 
-                            :@type                => "InteractionCounter",
-                            :interactionType      => "https://schema.org/FollowAction",
-                            :userInteractionCount => user_data["data"]["follower_count"],
-                            :endTime              => Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
-                        }
-                    end                    
-                end  
-
-                @tiktokusers[d] = user              
-
-            end
-            user
-        }},
-=end        
+        }},     
         keywords:    '$.hashtag_names',
         identifier:  {'@' =>  lambda { |d,o| 
             unless d["music_id"].nil?
@@ -727,24 +624,28 @@ RULE_SET_v0_1 = {
             rdata 
         } },
         locationCreated: { "$.region_code" =>  lambda { |d,o| 
-            d
+            unless d.nil? || d.empty?
+                c = ISO3166::Country.new(d)
+                country = c.translations[I18n.locale.to_s] || c.name
+                {   
+                    :name          => country,
+                    :@type         => "Place",
+                    :alternateName => d.downcase
+                }
+            end
         }},
         inLanguage: { "$" =>  lambda { |d,o| 
             unless Iso639[d].nil? || Iso639[d].alpha2.to_s.empty?
-                {
-                    :@type         => "Language",
-                    :@id           => Iso639[d].alpha2,
-                    :name          => Iso639[d].name,
-                    :alternateName => Iso639[d].alpha2,
-                }
+                langcode = d
             else
-                {
-                    :@type => "Language",
-                    :name => "Undetermined",
-                    :alternateName => "und",
-                    :@id => "und"
-                }
+                langcode = o[:contextLanguage] 
             end
+            {
+                :@type         => "Language",
+                :@id           => Iso639[langcode].alpha2,
+                :name          => Iso639[langcode].name,
+                :alternateName => Iso639[langcode].alpha2,
+            }
         }},
         comment: { "$.comment" => lambda { |d,o|
             out = DataCollector::Output.new
@@ -756,6 +657,9 @@ RULE_SET_v0_1 = {
         comments: { "$.comments" => lambda { |d,o|
             o[:downloadtime] = d["download_time"]
             out = DataCollector::Output.new
+            rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d["comment_language"].downcase, out, o)
+            o[:comment_language] = "#{d["comment_language"].downcase}-#{out[:detect_language_script][0]}"
+            out = DataCollector::Output.new
             rules_ng.run(@rule_set_name[:rs_comment], d, out, o)
             out["@type"] = "Comment"
             out.raw
@@ -764,9 +668,26 @@ RULE_SET_v0_1 = {
     rs_comment:{
         "@id": "$.cid",
         "@type": "Comment",
-        desc: "$.share_info.desc",
-        text: "$.text",
-        name: "$.share_info.title",
+        name: {"$"=> lambda { |d,o|
+
+            if  d["share_info"]["desc"].nil? || d["share_info"]["desc"].empty?
+                {
+                    :@value => "#{d["user"]["nickname"]}’s comment: #{d["text"]}",
+                    :@language => o[:comment_language]
+                }
+            else
+                {
+                    :@value => d["share_info"]["desc"],
+                    :@language => o[:comment_language]
+                }
+            end
+        }},
+        text: {"$.text"=> lambda { |d,o|
+            {
+                :@value => d,
+                :@language => o[:comment_language]
+            }
+        }},
         create_time: { "$.create_time" => lambda { |d,o|
             Time.at(d).strftime("%Y-%m-%d")
         }},
@@ -782,12 +703,25 @@ RULE_SET_v0_1 = {
         }},
         author: { "$.user" => lambda { |d,o|
             {
-                id: d["uid"],
-                name: d["nickname"],
-                alternateName: d["unique_id"]
+                :@id           => d["uid"],
+                :name          => d["nickname"],
+                :alternateName => d["unique_id"]
             }
         }},
-        sameAs: "$.share_info.url",
+        # sameAs: "$.share_info.url",
+        inLanguage: { "$.comment_language" =>  lambda { |d,o| 
+            unless Iso639[d].nil? || Iso639[d].alpha2.to_s.empty?
+                langcode = d
+            else
+                langcode = o[:contextLanguage] 
+            end
+            {
+                :@type         => "Language",
+                :@id           => Iso639[langcode].alpha2,
+                :name          => Iso639[langcode].name,
+                :alternateName => Iso639[langcode].alpha2,
+            }
+        }},        
         comment: { "$.comments" => lambda { |d,o|
             o[:downloadtime] = d["download_time"]
             out = DataCollector::Output.new

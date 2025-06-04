@@ -214,8 +214,13 @@ module IcandidCollector
 
         @logger.info ("Start parsing using rule_set: #{ icandid_config.config[:rule_set]}")
         icandid_config.config[:nbr_created_records] = 0
-        files.each_with_index do |source_file, index| 
-          parse_data( file: source_file, options:  @parsing_options, rule_set: icandid_config.config[:rule_set].constantize )
+        files.each_with_index do |source_file, index|
+          begin
+            parse_data( file: source_file, options:  @parsing_options, rule_set: icandid_config.config[:rule_set].constantize )
+          rescue DataCollector::InputError => e
+            @logger.error ("Error parsing file #{source_file} at index #{index}")
+            raise e.message
+          end
           @total_nr_parsed_files =  @total_nr_parsed_files + 1
           output.data[:records] = [output.data[:records]] unless output.data[:records].is_a?(Array)
           one_record_output = DataCollector::Output.new

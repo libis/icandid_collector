@@ -53,26 +53,29 @@ RULE_SET_VIDEO_DOWNLOAD_v0_1 = {
 
                     FileUtils.mkdir_p(output_path) unless File.directory?(output_path)
                     FileUtils.chmod(0755, output_path) unless File.writable?(output_path)
-                    
-                    headers = {}
-                    http = HTTP
+                    begin
+                        headers = {}
+                        http = HTTP
 
-                    http_response = http.follow.get(message_url, headers)
+                        http_response = http.follow.get(message_url, headers)
 
-                    all_cookies = http_response.cookies
-                    data = http_response.body.to_s
-                    # puts data
-                    raw_data = Nokogiri::HTML(data)
-                    jdata = JSON.parse( raw_data.xpath("/html/body/script[@id='__UNIVERSAL_DATA_FOR_REHYDRATION__']").text )
+                        all_cookies = http_response.cookies
+                        data = http_response.body.to_s
+                        # puts data
+                        raw_data = Nokogiri::HTML(data)
+                        jdata = JSON.parse( raw_data.xpath("/html/body/script[@id='__UNIVERSAL_DATA_FOR_REHYDRATION__']").text )
 
-                    id = jdata["__DEFAULT_SCOPE__"]['webapp.video-detail']&.[]('itemInfo')&.[]('itemStruct')&.[]('id')
-                    video = jdata["__DEFAULT_SCOPE__"]['webapp.video-detail']&.[]('itemInfo')&.[]('itemStruct')&.[]('video')
-                    if id.nil?
-                        pp "Error: Video ID #{ d["id"]} not found in the response. #{message_url}"
-                        pp "Video and/or user may be deleted."
-                        return
+                        id = jdata["__DEFAULT_SCOPE__"]['webapp.video-detail']&.[]('itemInfo')&.[]('itemStruct')&.[]('id')
+                        video = jdata["__DEFAULT_SCOPE__"]['webapp.video-detail']&.[]('itemInfo')&.[]('itemStruct')&.[]('video')
+                        if id.nil?
+                            pp "Error: Video ID #{ d["id"]} not found in the response. #{message_url}"
+                            pp "Video and/or user may be deleted."
+                            return
+                        end
+                    rescue Exception => e
+                        pp "Error parsing JSON data: #{e.message}"
                     end
-                    
+
                     download_url = ""
 
                     unless video.empty?
@@ -82,6 +85,7 @@ RULE_SET_VIDEO_DOWNLOAD_v0_1 = {
                         end
                     end
              
+                    pp "Download URL: #{download_url}"
                     #unless download_url.include?("https://") || download_url.include?("http://")
                     if download_url.empty?
                         # pp "video['downloadAddr'] and video['playAddr'] are empty"
@@ -144,28 +148,32 @@ RULE_SET_VIDEO_DOWNLOAD_v0_1 = {
                         return
                     end
 
-                    headers[:referer] = 'https://www.tiktok.com/'
+                    begin
+                        headers[:referer] = 'https://www.tiktok.com/'
 
-                    # pp "Download URL: #{download_url}"
+                        # pp "Download URL: #{download_url}"
 
-                    http = http.headers(headers[:headers])
-                    http = http.cookies( all_cookies )
+                        http = http.headers(headers[:headers])
+                        http = http.cookies( all_cookies )
 
-                    http_response = http.follow.get(download_url)
-                    
-                    #puts http_response.status
-                    #puts http_response.headers  
-                    #puts http_response.body.to_s.length
-                    
+                        http_response = http.follow.get(download_url)
+                        
+                        #puts http_response.status
+                        #puts http_response.headers  
+                        #puts http_response.body.to_s.length
+                        
 
-                    if http_response.status == 200
-                        File.open(output_file, 'wb') do |file|
-                            file.write(http_response.body.to_s)
-                        end
-                    else
-                        puts "Error: #{http_response.status}"
-                        exit
-                    end 
+                        if http_response.status == 200
+                            File.open(output_file, 'wb') do |file|
+                                file.write(http_response.body.to_s)
+                            end
+                        else
+                            puts "Error: #{http_response.status}"
+                            exit
+                        end 
+                    rescue Exception => e
+                        pp "HTTP Error: #{e.message}"
+                    end
                 end
             end
         }} 
