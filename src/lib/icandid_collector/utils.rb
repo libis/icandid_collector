@@ -48,6 +48,40 @@ module IcandidCollector
       end
     end
 
+
+    def languageDetection( data, options )
+      begin
+        #@logger.debug("Start detect language #{ options[:language_detection_url]} OR #{ options[:language_detection_service] }")
+        if options[:language_detection_url].nil?
+          unless options[:language_detection_service].nil?
+            options[:language_detection_url] = "https://#{ options[:language_detection_service] }/detect"
+          end
+        end
+        unless options[:language_detection_url].nil?
+          http= HTTP
+          http = http.headers({
+              "Content-Type": "application/json"
+          })
+
+          http_response = http.follow.post(options[:language_detection_url], body: {"text": data}.to_json)
+          if http_response.status == 200 && !http_response.body.to_s.empty?
+              response = JSON.parse(http_response.body.to_s)
+              unless response["language"].nil? || response["language"].empty? || response["is_reliable"] == "false"
+                  return response["language"]
+              end
+          end
+          
+          return "und" # undetermined
+        end
+      rescue StandardError => e
+        @logger.error("#{ e.message  }")
+        @logger.error("#{ e.backtrace.inspect   }")
+        pp e.message
+        raise e.message
+      end
+    end
+
+
     def mailErrorReport (subject,  report , importance, config)
       now = DateTime.now
 
