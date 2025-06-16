@@ -2,7 +2,7 @@
 require 'data_collector'
 require "iso639"
 require_relative 'basic_schema'
-require_relative 'detect_language_script'
+require_relative 'language_helpers'
 
 RULE_SET_v0_1 = {
     version: "0.1",
@@ -131,7 +131,7 @@ RULE_SET_v0_1 = {
         alternateName:  {'$.alternative_titles.titles' =>  lambda { |d,o| 
 
             out = DataCollector::Output.new
-            rules_ng.run(RULE_SET_LANGUAGE_SCRIPT[:rs_detect_language_script], d["title"], out, o)
+            rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d["title"], out, o)
             {
                 :@value => d["title"],
                 :@language => "#{d["iso_3166_1"].downcase}-#{out[:detect_language_script][0]}"
@@ -215,7 +215,7 @@ RULE_SET_v0_1 = {
         productionCompany:  {'$.production_companies' =>  lambda { |d,o| 
             #"logo": d["logo_path"]
             {
-                :@typ => "Organization",
+                :@type => "Organization",
                 :@id => "tmdb_organization_#{d["id"]}",
                 :name => d["name"]
             }

@@ -2,14 +2,14 @@
 require 'data_collector'
 require "iso639"
 
-# Ingo about ISO 15924, Codes for the representation of names of scripts
+# Info about ISO 15924, Codes for the representation of names of scripts
 # https://stackoverflow.com/questions/4681055/how-can-i-detect-certain-unicode-characters-in-a-string-in-ruby/4681577
 # https://stackoverflow.com/questions/24618443/detecting-language-script-of-text-with-ruby
 # https://en.wikipedia.org/wiki/ISO_15924
 # https://en.wikipedia.org/wiki/IETF_language_tag
 # https://rubygems.org/gems/iso-15924 (Currently NOT USED)
 
-RULE_SET_LANGUAGE_SCRIPT = {
+RULE_SET_LANGUAGE_HELPERS = {
     version: "1.0",
     rs_detect_language_script: {
         detect_language_script: { "@" => lambda { |d,o| 
@@ -93,6 +93,66 @@ RULE_SET_LANGUAGE_SCRIPT = {
             when /\p{Yi}/ then 'Yiii'
             else 'Latn'
             end           
+        }}
+    },
+    rs_translate_language: {
+        translate_language_name_to_code: { "@" => lambda { |d,o| 
+            translation = {
+                "nl" => {
+                    "nederlands" => "nl",
+                    "frans"      => "fr",
+                    "engels"     => "en",
+                    "duits"      => "de",
+                    "italiaans"  => "it",
+                    "spaans"     => "es"
+                },
+                "fr": {
+                    "néerlandais" => "nl",
+                    "français"    => "fr",
+                    "anglais"     => "en",
+                    "allemand"    => "de",
+                    "italien"     => "it",
+                    "espagnol"    => "es"
+                },
+                "en": {
+                    "dutch"   => "nl",
+                    "french"  => "fr",
+                    "english" => "en",
+                    "german"  => "de",
+                    "italian" => "it",
+                    "spanish" => "es"
+                },
+                "de": {
+                    "niederländisch" => "nl",
+                    "französisch"    => "fr",
+                    "english"        => "en",
+                    "deutsch"        => "de",
+                    "italienisch"    => "it",
+                    "spanisch"       => "es"
+                },
+
+                "it": {
+                    "olandese" => "nl",
+                    "francese" => "fr",
+                    "inglese"  => "en",
+                    "tedesco"  => "de",
+                    "italiano" => "it",
+                    "spagnolo" => "es"
+                },
+                "es": {
+                    "holandés" => "nl",
+                    "francés"  => "fr",
+                    "inglés"   => "en",
+                    "alemán"   => "de",
+                    "italiano" => "it",
+                    "español"  => "es"
+                }
+            }
+            if o[:translate_language]&.[](:input_language)
+                translation[ o[:translate_language][:input_language] ]&.[]( d.downcase ) || "und"
+            else
+                "und"
+            end
         }}
     }
 }

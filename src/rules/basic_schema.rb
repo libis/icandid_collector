@@ -2,6 +2,31 @@
 require 'data_collector'
 require "iso639"
 
+def get_uuid (uuid_url)
+    begin
+        http = HTTP
+        uri = URI.decode_www_form_component("#{uuid_url.to_s}")
+
+        http_response = http.follow.get(uri.to_s, {})
+
+        data = JSON.parse( http_response.body.to_s )
+
+        case http_response.code
+        when 200..299
+            uuid = data
+            url = "https://icandid.libis.be/_/" + uuid
+        when 400
+            uuid = data["uuid"]
+            url = "https://icandid.libis.be/_/" + uuid
+        end
+        [ url, uuid ]
+    rescue StandardError => e 
+        pp "rescue rescue rescuerescue"
+        pp e
+
+    end
+end
+
 RULE_SET_BASIC_ICANDID = {
     version: "1.0",
     rs_basic_schema: {
@@ -26,6 +51,18 @@ RULE_SET_BASIC_ICANDID = {
                 resolvable: "1"
             }
 
+            if o[:additionalType].nil?
+                    o[:additionalType] = [ "CreativeWork" ]
+            end
+
+            
+            unless o[:additionalType].is_a?(Array)
+                o[:additionalType] = ( o[:additionalType] )
+            end
+            
+            unless o[:additionalType].include?("CreativeWork")
+                o[:additionalType] << "CreativeWork"
+            end
 
             id = "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{o[:id]}"
             uuid = nil
@@ -33,31 +70,14 @@ RULE_SET_BASIC_ICANDID = {
 
             uuid_url = o[:uuid_generate][:url] +"/"+ id +"?by="+ o[:uuid_generate][:by] +"&for="+ o[:uuid_generate][:for] +"&resolvable="+ o[:uuid_generate][:resolvable]
   
-            http = HTTP
-            uri = URI.decode_www_form_component("#{uuid_url.to_s}")
-
-            http_response = http.follow.get(uri.to_s, {})
-
-            data = JSON.parse( http_response.body.to_s )
-
-            case http_response.code
-            when 200..299
-                uuid = data
-                url = "https://icandid.libis.be/_/" + uuid
-            when 400
-                uuid = data["uuid"]
-                url = "https://icandid.libis.be/_/" + uuid
-            end
-
+            url, uuid = get_uuid(uuid_url)
  
             {
-
-
                 :@id            => id,
                 :@uuid          => uuid,
                 :url            => url,
                 :@type          => o[:type],
-                :additionalType => "CreativeWork",
+                :additionalType => o[:additionalType],
                 :isBasedOn      => {
                     :@type    => "CreativeWork",
                     :@id      => "#{ o[:ingest_data][:prefixid] }_#{  o[:ingest_data][:provider][:@id].downcase }_#{ o[:ingest_data][:dataset][:@id].downcase }",
@@ -70,16 +90,35 @@ RULE_SET_BASIC_ICANDID = {
                         :license  => o[:ingest_data][:dataset][:license]
                     }
                 },
+                # Also check CONTEXT in icandid_utils in ES_LOADER !!!
                 :@context  => {
                     :@vocab => "https://schema.org/",
-                    :@language => "#{ o[:ingest_data][:metaLanguage] }-#{ o[:ingest_data][:unicode_script]}",
                     :prov => "https://www.w3.org/ns/prov#",
+                    :@language => "#{ o[:ingest_data][:metaLanguage] }-#{ o[:ingest_data][:unicode_script]}",
                     :"prov:wasAssociatedFor" => {
                         :@reverse => "prov:wasAssociatedWith"
                     }
+
                 }
-            }
+            }.compact
         
         }}
     }
 }
+
+
+#####################################################################################################
+# Define @context
+# https://www.w3.org/TR/2014/REC-json-ld-20140116/#advanced-context-usage
+# https://stackoverflow.com/questions/47227586/multiple-contexts-in-json-ld
+#
+# Reverse Properties
+# https://www.w3.org/TR/json-ld/#reverse-properties
+# 
+# Using properties from mutiple type (example color from Product used in Image, ImageObject, ...)
+# https://schema.org/additionalType
+# 
+# Additionalproperty 
+# https://victorious.com/blog/product-schema-markup-example/
+# 
+#####################################################################################################

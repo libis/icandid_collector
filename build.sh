@@ -40,6 +40,7 @@ function push {
      docker push $REGISTRY/$NAMESPACE/$SERVICE
    else
     echo "Pushing with version tag $VERSION_TAG"
+
     docker tag $NAMESPACE/$SERVICE $REGISTRY/$NAMESPACE/$SERVICE:$VERSION_TAG
     docker push $REGISTRY/$NAMESPACE/$SERVICE:$VERSION_TAG
    fi   
@@ -48,6 +49,7 @@ function push {
 case $1 in
 "push")
   build
+  echo "push $REGISTRY/$NAMESPACE/$SERVICE:$VERSION_TAG"
   push
   ;;
 *)

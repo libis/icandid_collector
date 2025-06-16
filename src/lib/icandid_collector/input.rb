@@ -4,12 +4,15 @@ module IcandidCollector
 
   class Input
 
-    attr_accessor :icandid_config,  :raw
+    attr_accessor :icandid_config,  :raw, :total_nr_parsed_files
 
     def initialize( icandid_config: {} )
       @logger = Logger.new(STDOUT)
       @logger.level = Logger::DEBUG
       @icandid_config = icandid_config
+      @total_nr_parsed_files = 0
+      @retries = 0
+      @number_of_retries = 0
     end
 
     def collect_data_from_uri ( url: nil, options: {} )
@@ -21,6 +24,12 @@ module IcandidCollector
         if options[:method].nil?
           options[:method] = "GET"
         end
+
+        @number_of_retries = 2
+        unless options[:number_of_retries].nil?
+          @number_of_retries = options[:number_of_retries]
+        end
+
         @raw = data = DataCollector::Core.input.from_uri(url, options)
         data
 
@@ -59,6 +68,19 @@ module IcandidCollector
           else
             raise e.message
           end
+        elsif  /^Unable to process received status code = 429/ =~ e.message
+          pp "@retries #{@retries}"
+          pp "number_of_retries #{@number_of_retries}"
+          if @retries < @number_of_retries
+            @retries += 1
+            @logger.error ("Wait 600 seconds and try Again ==> number_of_retries:#{@retry_count}")
+            sleep 600
+            collect_data_from_uri(url: url,  options: options )
+          else
+            @logger.error("429 Too Many Requests")
+            @logger.error( data )
+            raise "429 Too Many Requests"
+          end
         else
           raise e.message
         end
@@ -81,13 +103,14 @@ module IcandidCollector
 
       @logger.info ("Start parsing using rule_set: #{ config[:rule_set]}")
       files.each_with_index do |source_file, index| 
-      
         # pp source_file
         parse_data( file: source_file, options: options, rule_set: config[:rule_set].constantize )
-
+        @total_nr_parsed_files =  @total_nr_parsed_files + 1
         output.data[:records] = [output.data[:records]] unless output.data[:records].is_a?(Array)
 
         one_record_output = DataCollector::Output.new
+
+        # @logger.debug ("process data output.data #{ output.data } ")
 
         output.data[:records].each do | data |
           unless data.nil?
@@ -149,21 +172,16 @@ module IcandidCollector
         data = input.from_uri("file://#{ file }", {} )
         
         options[:file] = file
+
 #        pp data
- #       pp rule_set
 
         # @logger.debug(" options #{ options }")
-
-        #@logger.debug(" rules_ng.run #{ rule_set }")
-        #puts rule_set
-        #puts rule_set[:version]
-        #puts "================>"
-
+        # @logger.debug("parse_data rules_ng.run #{ rule_set }")
+        
         rules_ng.run( rule_set[:rs_records], data, output, options )
 
-        #pp output.raw
         # output.crush
-        
+        # @logger.debug("parse_data output  #{ output}")
         output
 
       rescue StandardError => e

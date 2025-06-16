@@ -2,7 +2,7 @@
 $LOAD_PATH << '.' << './lib' << "#{File.dirname(__FILE__)}" << "#{File.dirname(__FILE__)}/lib"
 
 require 'icandid_collector'
-provider = 'scopeArchiv'
+provider = 'scopeArchiv_EAD'
 
 PROCESS_TYPE = "parser"
 ROOT_PATH = File.join( File.dirname(__FILE__), '../')
@@ -55,7 +55,8 @@ begin
             :KYE => "**",
             :date => "**",
             :prefixid => "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }",
-            :type => "CreativeWork"
+            :type => "ArchiveComponent",
+            :additionalType => "OwnershipInfo"
         }
 
         icandid_config.update_config_with_query_data( query: query, options: options )
@@ -67,7 +68,7 @@ begin
 
         options = {
             :prefixid => "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }",
-            :type => "CreativeWork"
+            :type => "ArchiveComponent"
         }
 
         icandid_input  = IcandidCollector::Input.new( :icandid_config => icandid_config)

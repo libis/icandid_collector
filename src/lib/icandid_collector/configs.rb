@@ -170,7 +170,15 @@ module IcandidCollector
     end
 
     def get_queries_to_process( )
-      queries_to_process = @query_config[:queries]
+
+      queries_to_process = @query_config[:queries].map { |q| 
+        unless q.has_key?(:internal_collector_id) && ! q[:internal_collector_id].nil?
+          q[:internal_collector_id] = rand(36**10).to_s(36)
+        end
+        q
+      }
+      @query_config[:queries] = queries_to_process
+
       unless @command_line_options[:query_id].nil?
         query_ids_to_parse = @command_line_options[:query_id].split(",")
         queries_to_process = @query_config[:queries].select { |q| query_ids_to_parse.include?(  q[:query][:id] ) }
@@ -194,7 +202,6 @@ module IcandidCollector
         [k, v]
       }.to_h
 
-
       if options[:date].nil?
         options[:date]  = Time.now.strftime("%Y/%m/%d")  
         if options[:collection_type] == "recent_records"
@@ -214,6 +221,7 @@ module IcandidCollector
       options[:month] = Time.now.strftime("%m")
       options[:day]   = Time.now.strftime("%d")
       options[:hour]  = Time.now.strftime("%H")
+
 
       @config = JSON.parse( Mustache.render(JSON.generate(@config), options),  :symbolize_names => true)
   
@@ -237,7 +245,8 @@ module IcandidCollector
     def update_query_config
       if @command_line_options[:last_parsing_datetime].nil?
         new_queries = @query_config[:queries].map { |q| 
-          new_q = @queries_to_process.select{ |ptop| ptop[:query][:id] == q[:query][:id] }.first
+          #new_q = @queries_to_process.select{ |ptop| ptop[:query][:id] == q[:query][:id] }.first
+          new_q = @queries_to_process.select{ |ptop| ptop[:internal_collector_id] == q[:internal_collector_id] }.first
           unless new_q.nil?
             p = proc { |v1, v2| 
               result = {}
@@ -257,6 +266,8 @@ module IcandidCollector
           end
           q
         }
+
+       # new_queries.map!{ |q| q.delete(:internal_collector_id); q }
         @query_config[:queries] = new_queries
       end
     end

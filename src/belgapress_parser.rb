@@ -3,7 +3,7 @@ $LOAD_PATH << '.' << './lib' << "#{File.dirname(__FILE__)}" << "#{File.dirname(_
 ROOT_PATH = File.join( File.dirname(__FILE__), '../')
 
 require 'icandid_collector'
-provider = 'Europeana'
+provider = 'BelgaPress'
 
 PROCESS_TYPE = "parser"
 
@@ -14,7 +14,7 @@ INGEST_DATA = JSON.parse(ingestJson, :symbolize_names => true)
 
 def parse_recent_queries( options: {})
     options = { 
-        date: "**/*",
+        date: "*/**",
         collection_type: "recent"
     }
     parse_queries(options: options)
@@ -36,6 +36,8 @@ def parse_queries(options: {})
             rule_set = @icandid_config.config[:rule_set].constantize 
         end
 
+        options[:type] = "NewsArticle"
+
         @icandid_config.queries_to_process.each do |query|
             @icandid_config.config[:query] = query
             @icandid_config.ingest_data[:dataset][:@id]  = query[:query][:id]
@@ -52,13 +54,14 @@ def parse_queries(options: {})
             @logger.info ("Start parsing query: #{ query[:query][:name] } ")
             @logger.info ("Start parsing source_records_dir: #{@icandid_config.config[:source_records_dir]} ")
             @logger.info ("Start parsing source_file_name_pattern: #{@icandid_config.config[:source_file_name_pattern]} ")
-            
+
             icandid_input.process_files( options: options  )
             @logger.info ("Start parsing next NEXT NEXT ")
 
         end
     end
 end
+
 
 begin
 
@@ -69,41 +72,32 @@ begin
     @total_nr_parsed_records = 0    
     @icandid_utils  = IcandidCollector::Utils.new()
 
+
+
     config = {
         :config_path => File.join(ROOT_PATH, "./config/#{provider}")
     }
 
     @icandid_config = IcandidCollector::Configs.new( :config => config , :ingest_data => INGEST_DATA) 
     
-    @logger.info ("Start parsing using config: #{ File.join( config[:config_path] , "config.yml") }")
+    @logger.info ("Start downloading using config: #{ File.join( config[:config_path] , "config.yml") }")
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    @logger.info ("Parsing for queries in : #{File.join( @icandid_config.query_config.path , @icandid_config.query_config.name) }")
+    @logger.info ("Download for queries in : #{File.join( @icandid_config.query_config.path , @icandid_config.query_config.name) }")
     
-    @icandid_config.queries_to_process.map! do |query|
-           query
-    end
 
     options = {
         prefixid: "#{@icandid_config.ingest_data[:prefixid]}_#{ @icandid_config.ingest_data[:provider][:@id].downcase }_#{ @icandid_config.ingest_data[:dataset][:@id].downcase }",
-        ingest_data: @icandid_config.ingest_data,
-        types:{
-            "TEXT"=>"TextObject",
-            "IMAGE"=>"ImageObject",
-            "SOUND"=>"AudioObject",
-            "VIDEO"=>"VideoObject",
-            "3D"=>"3DModel"
-        },
-        date: "**/*"
+        ingest_data: @icandid_config.ingest_data
     }
-    parse_queries(options: options)
-#    parse_recent_queries(options: options)
-#    parse_backlog_queries(options: options)
+
+    parse_recent_queries(options: options)
+    parse_backlog_queries(options: options)
     
     @icandid_config.queries_to_process.map! do |query|
         query[:last_parsing_datetime] = start_processing
 
         query
     end
-    #@icandid_config.update_query_config
+    @icandid_config.update_query_config
 
 end

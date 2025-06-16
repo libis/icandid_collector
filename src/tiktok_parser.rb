@@ -8,7 +8,7 @@ provider = 'tiktok'
 PROCESS_TYPE = "parser"
 
 ingestJson =  File.read(File.join(ROOT_PATH, "./config/#{provider}/ingest.cfg"))
-Dir[  File.join( ROOT_PATH,"src/rules/#{provider}_*.rb") ].each {|file| require file; }
+Dir[  File.join( ROOT_PATH,"src/rules/#{provider.downcase}_*.rb") ].each {|file| require file; }
 
 INGEST_DATA = JSON.parse(ingestJson, :symbolize_names => true)
 
@@ -36,7 +36,7 @@ def parse_queries(options: {})
             rule_set = @icandid_config.config[:rule_set].constantize 
         end
 
-        options[:type] = "message"
+        options[:type] = "Message"
 
 
         @icandid_config.queries_to_process.each do |query|
