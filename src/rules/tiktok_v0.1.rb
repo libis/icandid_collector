@@ -626,7 +626,13 @@ RULE_SET_v0_1 = {
         locationCreated: { "$.region_code" =>  lambda { |d,o| 
             unless d.nil? || d.empty?
                 c = ISO3166::Country.new(d)
-                country = c.translations[I18n.locale.to_s] || c.name
+                
+                if  c.nil?
+                    country = d
+                else
+                    country = c.translations[I18n.locale.to_s] || c.name
+                end
+
                 {   
                     :name          => country,
                     :@type         => "Place",
