@@ -52,7 +52,7 @@ RULE_SET_BASIC_ICANDID = {
             end
 
             o[:uuid_generate] = {
-                url: "https://services6.libis.be/uuid/generate",
+                url: "https://services.libis.be/uuid/generate",
                 by: "icandid_tech@libis.kuleuven.be",
                 for: "icandid",
                 resolvable: "1"

@@ -440,8 +440,8 @@ RULE_SET_v0_1 = {
             expand_out = DataCollector::Output.new
             rules_ng.run(@rule_set_name[:rs_expand_record], d, expand_out, o)
 
-            d["userdata"] = expand_out["user"]
-            d["comment"] = expand_out["comment"]
+            d["userdata"] = expand_out["user"] unless
+            d["comment"] = expand_out["comment"] unless expand_out["comment"].nil? || expand_out["comment"].empty?
 
             #pp "RULES RULES RULESrs_expand_record"
             #pp out["user"]
