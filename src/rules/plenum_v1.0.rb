@@ -9,8 +9,8 @@ DEBUG = true
 RULE_SET_v1_0 = {
     version: "1.0",
     rs_next_value: {
-        next_token: { "$" => lambda { |d,o| 
-            o["query"]["params"]["next_token"]+1
+        page: { "$" => lambda { |d,o| 
+            o["query"]["params"]["page"]+1
         }}
     },
     rs_filename:{
@@ -38,6 +38,9 @@ RULE_SET_v1_0 = {
     },
     rs_record: {
         record: { "$.data" => lambda { |d,o| 
+            if d["text"] =~ /{"detail":"No session found with id .*"}/
+                return nil
+            end
 
             rdata = {}
             out = DataCollector::Output.new

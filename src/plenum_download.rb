@@ -17,34 +17,36 @@ INGEST_DATA = JSON.parse(ingestJson, :symbolize_names => true)
 
 def process_queries(icandid_config)
     begin
+
         icandid_config.queries_to_process.each.with_index() do |query, index|
+
+            if query[:params].nil? || query[:params][:completed]
+                next;
+            end
 
             start_processing = Date.today
             @logger.info ("Download records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
             icandid_config.config[:query] = query    
             
-            if query[:params].nil? || query[:params][:completed]
-                next;
+            options = { 
+                download_url_prop: "sessions_url"
+            }
+
+            icandid_config.prepare_query(query: query, options: options)
+            url = icandid_config.config[ options[:download_url_prop].to_sym ]
+            
+            unless url.nil?
+
+                @logger.info("download_url : #{url}")
+                process_query(icandid_config: icandid_config, query: query, options: options)
+    
             end
 
-            options = {  }
-
-            prepare_query(query: query, options: options, icandid_config: icandid_config)
-            
             query[:params][:last_run_update] = start_processing.strftime()
-        
             icandid_config.update_query_config
         end
     end
 end
-
-
-def prepare_query(icandid_config: nil, query: nil, options: {})
-    begin
-        process_query(query: query, options: options, icandid_config: icandid_config)       
-    end
-end
-
 
 
 def process_query(icandid_config: nil, query: nil, options: {})
@@ -64,9 +66,8 @@ def process_query(icandid_config: nil, query: nil, options: {})
 
     @logger.info ("Start Download query: #{ query[:query][:name] } ")
     @logger.info ("Start Download source_records_dir: #{ icandid_config.config[:source_records_dir] } ")
-   
-    
-    url = icandid_config.config[:sessions_url]
+       
+    url = icandid_config.config[ options[:download_url_prop].to_sym ]
 
     while (url)
         
@@ -117,6 +118,8 @@ def process_query(icandid_config: nil, query: nil, options: {})
                 d
             }
 
+
+            options[:query] = query
             output = DataCollector::Output.new
             rules_ng.run( rule_set[:rs_filename], [data], output, options )
             rules_ng.run( rule_set[:rs_next_value], data, output, options )
@@ -141,8 +144,8 @@ def process_query(icandid_config: nil, query: nil, options: {})
                 icandid_output.save_data_to_uri( uri: "file://#{file}" , options: {"content_type": "application/json"})
             end
 
-            unless output["next_token"].nil?
-                query[:params][:next_token] = output["next_token"].first 
+            unless output["page"].nil?
+                query[:params][:page] = output["page"].first 
                 icandid_config.update_query_config
                 query = icandid_config.queries_to_process.select{ |ptop| ptop[:internal_collector_id] == query[:internal_collector_id] }.first
 
@@ -152,10 +155,9 @@ def process_query(icandid_config: nil, query: nil, options: {})
             end
         end
 
-
         if data.empty? || query[:params][:end_date].to_date < data.last["date"].to_date
             query[:params][:completed] = true
-            query[:params][:next_token] = nil
+            query[:params][:page] = nil
             # pp check for errors
             icandid_config.update_query_config
             url = nil

@@ -3,8 +3,8 @@ FROM ruby:3.1.4
 #FROM timbru31/ruby-node  
 
 # Install gems
-ENV APP_HOME /app
-ENV HOME /root
+ENV APP_HOME=/app
+ENV HOME=/root
 
 RUN cp /usr/share/zoneinfo/CET /etc/localtime 
 # RUN apt-get update
@@ -17,7 +17,7 @@ ADD oracle/*.zip /opt/oracle/
 RUN ls /opt/oracle/
 RUN cd /opt/oracle && unzip -q \*.zip
 RUN cd /opt/oracle/instantclient_12_2 && ln -s libclntsh.so.12.1 libclntsh.so
-ENV LD_LIBRARY_PATH /opt/oracle/instantclient_12_2
+ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_12_2
 
 RUN gem install ruby-oci8
 

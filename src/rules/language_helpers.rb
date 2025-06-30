@@ -9,6 +9,31 @@ require "iso639"
 # https://en.wikipedia.org/wiki/IETF_language_tag
 # https://rubygems.org/gems/iso-15924 (Currently NOT USED)
 
+
+
+DEFAULT_REGIONS = {
+ "af" => "ZA", "am" => "ET", "ar" => "001", "as" => "IN", "az" => "AZ",
+ "be" => "BY", "bg" => "BG", "bn" => "BD", "bs" => "BA", "ca" => "ES",
+ "cs" => "CZ", "cy" => "GB", "da" => "DK", "de" => "DE", "el" => "GR",
+ "en" => "US", "es" => "ES", "et" => "EE", "eu" => "ES", "fa" => "IR",
+ "fi" => "FI", "fil" => "PH", "fr" => "FR", "ga" => "IE", "gl" => "ES",
+ "gu" => "IN", "ha" => "NG", "he" => "IL", "hi" => "IN", "hr" => "HR",
+ "hu" => "HU", "hy" => "AM", "id" => "ID", "ig" => "NG", "is" => "IS",
+ "it" => "IT", "ja" => "JP", "jv" => "ID", "ka" => "GE", "kk" => "KZ",
+ "km" => "KH", "kn" => "IN", "ko" => "KR", "ky" => "KG", "lb" => "LU",
+ "lo" => "LA", "lt" => "LT", "lv" => "LV", "mg" => "MG", "mi" => "NZ",
+ "mk" => "MK", "ml" => "IN", "mn" => "MN", "mr" => "IN", "ms" => "MY",
+ "mt" => "MT", "my" => "MM", "ne" => "NP", "nl" => "NL", "no" => "NO",
+ "or" => "IN", "pa" => "IN", "pl" => "PL", "ps" => "AF", "pt" => "BR",
+ "ro" => "RO", "ru" => "RU", "sd" => "PK", "si" => "LK", "sk" => "SK",
+ "sl" => "SI", "sq" => "AL", "sr" => "RS", "sv" => "SE", "sw" => "TZ",
+ "ta" => "IN", "te" => "IN", "th" => "TH", "ti" => "ET", "tr" => "TR",
+ "uk" => "UA", "ur" => "PK", "uz" => "UZ", "vi" => "VN", "yi" => "001",
+ "yo" => "NG", "zh" => "CN", "zu" => "ZA"
+}
+
+
+
 RULE_SET_LANGUAGE_HELPERS = {
     version: "1.0",
     rs_detect_language_script: {
@@ -130,7 +155,6 @@ RULE_SET_LANGUAGE_HELPERS = {
                     "italienisch"    => "it",
                     "spanisch"       => "es"
                 },
-
                 "it": {
                     "olandese" => "nl",
                     "francese" => "fr",
@@ -152,6 +176,35 @@ RULE_SET_LANGUAGE_HELPERS = {
                 translation[ o[:translate_language][:input_language] ]&.[]( d.downcase ) || "und"
             else
                 "und"
+            end
+        }}
+    },
+    rs_expand_language_code_with_region: {
+        expand_language_code_with_region: { "@" => lambda { |d,o|
+            if d.nil? || d.empty?
+                return "und"
+            end 
+            if d.length == 2
+                region = DEFAULT_REGIONS[d]
+                if region.nil?
+                    return d
+                else
+                    return "#{d}-#{region}"
+                end
+            elsif d.length == 3
+                # Check if it is a valid ISO 639-2 code
+                if ISO639::ISO_639_2.include?(d)
+                    region = DEFAULT_REGIONS[d]
+                    if region.nil?
+                        return d
+                    else
+                        return "#{d}-#{region}"
+                    end
+                else
+                    return d # Return as is if not a valid code
+                end
+            else
+                return d # Return as is for longer codes
             end
         }}
     }

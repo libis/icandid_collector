@@ -35,17 +35,24 @@ RULE_SET_BASIC_ICANDID = {
             # https://www.w3.org/TR/json-ld/#advanced-context-usage
             # https://github.com/schemaorg/schemaorg/issues/1905
 
-            if Iso639[o[:ingest_data][:metaLanguage]].nil?
-                puts ""
-                puts ""
-                puts ""
-                pp "CHECK o[:ingest_data][:metaLanguage]: #{o[:ingest_data][:metaLanguage]}"
-                puts ""
-                exit
+            unless Iso639[o[:ingest_data][:metaLanguage]].nil? || o[:ingest_data][:metaLanguage] == "und"
+                langcode = o[:ingest_data][:metaLanguage]
+            else
+                unless Iso639[o[:detectedLanguage]].nil?
+                    langcode = o[:detectedLanguage]
+                else
+                    puts "" 
+                    puts ""
+                    puts ""
+                    pp "CHECK o[:ingest_data][:metaLanguage]: #{o[:ingest_data][:metaLanguage]}"
+                    pp o
+                    puts ""
+                    raise "No valid language code found in ingest_data[:metaLanguage] #{o[:ingest_data][:metaLanguage]} or detectedLanguage #{o[:detectedLanguage]} for #{o[:id]}"
+                end
             end
 
             o[:uuid_generate] = {
-                url: "https://services6.libis.be/uuid/generate",
+                url: "https://services.libis.be/uuid/generate",
                 by: "icandid_tech@libis.kuleuven.be",
                 for: "icandid",
                 resolvable: "1"
@@ -94,7 +101,7 @@ RULE_SET_BASIC_ICANDID = {
                 :@context  => {
                     :@vocab => "https://schema.org/",
                     :prov => "https://www.w3.org/ns/prov#",
-                    :@language => "#{ o[:ingest_data][:metaLanguage] }-#{ o[:ingest_data][:unicode_script]}",
+                    :@language => "#{ langcode }-#{ o[:ingest_data][:unicode_script]}",
                     :"prov:wasAssociatedFor" => {
                         :@reverse => "prov:wasAssociatedWith"
                     }

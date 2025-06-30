@@ -46,24 +46,24 @@ def process_queries(icandid_config)
                 next;
             end
 
-            options = {  }
+            options = { 
+                download_url_prop: "timeline_url"
+            }
 
-            prepare_query(query: query, options: options, icandid_config: icandid_config)
-            
+            icandid_config.prepare_query(query: query, options: options)
+            url = icandid_config.config[ options[:download_url_prop].to_sym ]
+            unless url.nil?
+
+                @logger.info("download_url : #{url}")
+                process_query(icandid_config: icandid_config, query: query, options: options)
+    
+            end
+
             query[:params][:last_run_update] = start_processing.strftime()
-        
             icandid_config.update_query_config
         end
     end
 end
-
-
-def prepare_query(icandid_config: nil, query: nil, options: {})
-    begin
-        process_query(query: query, options: options, icandid_config: icandid_config)       
-    end
-end
-
 
 def filter_twitter_error(errors)
     errors = [errors] if ! errors.is_a?(Array)
@@ -100,7 +100,7 @@ def process_query(icandid_config: nil, query: nil, options: {})
     options[:prefixid] = "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }"
 
     icandid_config.update_config_with_query_data( query: query, options: options )
-    url = icandid_config.config[:timeline_url]
+    url = icandid_config.config[ options[:download_url_prop].to_sym ]
 
     @logger.info ("Start Download query: #{ query[:query][:name] } ")
     @logger.info ("Start Download source_records_dir: #{ icandid_config.config[:source_records_dir] } ")

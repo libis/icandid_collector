@@ -28,84 +28,91 @@ def process_recent_queries(icandid_config)
                 next;
             end
 
-            if query[:recent_records][:last_run_update].nil?
-                if query[:backlog][:end_date].nil?
-                    start_date = Date.new(Date.today.year)
-                else
-                    start_date = Date.parse(query[:backlog][:end_date])
-                end
-            else
-                start_date =  Date.parse(query[:recent_records][:last_run_update])
-            end
-
             options = { 
-                collection_type: "recent",
-                start_date: start_date,
-                end_date: start_processing
+                format: "%Y-%m-%d",
+                collection_type: "recent_records",
+                download_url_prop: "download_url",
+                page: 1
             }
 
-            prepare_query(query: query, options: options, icandid_config: icandid_config)
-            
-            query[:recent_records][:last_run_update] = start_processing.strftime()
+            icandid_config.prepare_query(query: query, options: options)
 
-exit            
+            url = icandid_config.config[ options[:download_url_prop].to_sym ]
+            unless url.nil?
+
+                @logger.info("download_url : #{url}")
+                
+                process_query(icandid_config: icandid_config, query: query, options: options)
+                
+                options[:page] = 1
+
+                url = icandid_config.config[ options[:download_url_prop].to_sym ]
+                icandid_config.update_config_with_query_data( query: query, options: options )
+                icandid_config.update_query_config
+    
+            end
+
+            query[:recent_records][:last_run_update] = start_processing.strftime()
+            query[:recent_records][:current_process_url] = nil
+            query[:recent_records][:current_process_periode] = nil
+            
+            icandid_config.config[:query] = query  
             icandid_config.update_query_config
 
         end
     end
 end
 
-
-def prepare_query(icandid_config: nil, query: nil, options: {})
+def process_backlog_queries(icandid_config)
     begin
 
-        start_date = options[:start_date]
-        end_date = options[:end_date]
+        icandid_config.queries_to_process.each.with_index() do |query, index|
 
-        # start_date : The lower bound of video creation time in UTC ( "20210102" )
-        # end_date   : The upper bound of video creation time in UTC ( "20210123" )
-        #              The end_date must be no more than 30 days after the start_date 
 
-        current_end_date = end_date
-        current_start_date = [(current_end_date - (30).days), start_date].max
-
-        counter = 0
-        while (start_date <= current_start_date  && counter < 1000) 
-
-            @logger.debug ("get records between #{current_start_date} - #{current_end_date}")
-
-            counter = counter + 1
-
-            #query[:query][:value]["start_date"] = (current_start_date).strftime("%Y%m%d") 
-            #query[:query][:value]["end_date"] = (current_end_date).strftime("%Y%m%d") 
+            start_processing = Date.today
+            @logger.info ("Download records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
+            icandid_config.config[:query] = query    
             
-            process_query(query: query, options: options, icandid_config: icandid_config)
+            if query[:backlog].nil? || query[:backlog][:completed]
+                next;
+            end
 
-            if options[:collection_type] == "backlog"
-                query[:backlog][:current_process_date] = current_end_date.strftime("%Y%m%d")
+            options = { 
+                format: "%Y-%m-%d",
+                collection_type: "backlog",
+                download_url_prop: "download_url",
+                page: 1
+            }
+
+            icandid_config.prepare_query(query: query, options: options)
+            url = icandid_config.config[ options[:download_url_prop].to_sym ]
+
+
+            until url.nil?
+
+                @logger.info("download_url : #{url}")
+                @logger.debug("save records to : #{icandid_config.config[:source_records_dir]}")
+
+                process_query(icandid_config: icandid_config, query: query, options: options)
+
+                options[:page] = 1
+
+                query[:backlog][:current_process_url] = nil
                 icandid_config.update_query_config
+                icandid_config.prepare_query(query: query, options: options)
+                url = icandid_config.config[ options[:download_url_prop].to_sym ]
+
             end
 
-            current_end_date = current_start_date
-            current_start_date = current_end_date - (30).days
-
-            unless current_start_date > start_date
-                current_start_date = start_date
-            end
+            query[:backlog][:completed] = true
+            query[:backlog][:current_process_url] = nil
+            query[:backlog][:current_process_periode] = nil
             
-            if current_start_date == current_end_date
-                if options[:collection_type] == "backlog"
-                    query[:backlog][:current_process_date] = current_end_date.strftime("%Y%m%d")
-                    query[:backlog][:completed] = true
-                    icandid_config.update_query_config
-                end
-                break
-            end
+            icandid_config.config[:query] = query  
+
+            icandid_config.update_query_config  
+
         end
-
-        query[:query][:value].delete("start_date")
-        query[:query][:value].delete("end_date")
-
     end
 end
 
@@ -117,20 +124,15 @@ def process_query(icandid_config: nil, query: nil, options: {})
             rule_set = icandid_config.config[ :rule_set].constantize 
         end
        
+        #icandid_config.ingest_data[:dataset][:@id]  = query[:query][:id]
+        #icandid_config.ingest_data[:dataset][:name] = query[:query][:name].gsub(/_/," ").capitalize()
+        #options[:prefixid] = "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }"
+        #icandid_config.update_config_with_query_data( query: query, options: options )
 
-        icandid_config.ingest_data[:dataset][:@id]  = query[:query][:id]
-        icandid_config.ingest_data[:dataset][:name] = query[:query][:name].gsub(/_/," ").capitalize()
-
-        options[:prefixid] = "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }"
-
-        icandid_config.update_config_with_query_data( query: query, options: options )
-
-        url = icandid_config.config[:recent_url]
+        url = icandid_config.config[ options[:download_url_prop].to_sym ]
                 
         @logger.info ("Start Download #{options[:collection_type]} query: #{ query[:query][:name] } ")
         @logger.info ("Start Download source_records_dir: #{ icandid_config.config[:source_records_dir] } ")
-
-        pp url
 
         while (url)
 
@@ -143,9 +145,6 @@ def process_query(icandid_config: nil, query: nil, options: {})
             icandid_input = IcandidCollector::Input.new( :icandid_config => icandid_config)
             data = icandid_input.collect_data_from_uri(url: url,  options: input_options )
 
-
-
-
             if data.nil?
                 @logger.warn "NO DATA AVAILABLE on this url #{url}"
                 break
@@ -155,10 +154,9 @@ def process_query(icandid_config: nil, query: nil, options: {})
                 @logger.debug ("total record for this query : #{ data["_meta"]}")
                 # Expand resultsdata to records with body
                 data["data"].map!{ |d|
-                    input_options[:uuid] = d["uuid"]
-                    icandid_config.update_config_with_query_data( query: query, options: input_options)
+                    options[:uuid] = d["uuid"]
+                    icandid_config.update_config_with_query_data( query: query, options: options)
                     record_url = icandid_config.config[:record_url]
-
                     record_data = icandid_input.collect_data_from_uri(url: record_url,  options: input_options )
 
                     unless record_data.nil? || record_data.empty?
@@ -169,7 +167,6 @@ def process_query(icandid_config: nil, query: nil, options: {})
                 }
 
             end
-        
             output = DataCollector::Output.new
 
             rules_ng.run( rule_set[:rs_filename], data, output, options )
@@ -183,8 +180,12 @@ def process_query(icandid_config: nil, query: nil, options: {})
                 icandid_output.save_data_to_uri( uri: "file://#{file}" , options: {"content_type": "application/json"})
             end
 
-            if output["next_url"].first
+            unless output["next_url"].nil?
                 url = output["next_url"].first 
+                unless query [ options[:collection_type].to_sym ].nil?
+                    query[ options[:collection_type].to_sym  ][:current_process_url] = url
+                end
+                icandid_config.update_query_config               
             else
                 url = nil
             end
@@ -210,7 +211,8 @@ begin
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
     @logger.info ("Download for queries in : #{File.join( icandid_config.query_config.path , icandid_config.query_config.name) }")
 
-    process_recent_queries(icandid_config)
+    #process_recent_queries(icandid_config)
+    process_backlog_queries(icandid_config)   
 
 rescue => exception
     @logger.error("Error : #{ exception } ")

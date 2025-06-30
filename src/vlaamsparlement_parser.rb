@@ -3,7 +3,7 @@ $LOAD_PATH << '.' << './lib' << "#{File.dirname(__FILE__)}" << "#{File.dirname(_
 ROOT_PATH = File.join( File.dirname(__FILE__), '../')
 
 require 'icandid_collector'
-provider = 'tiktok'
+provider = 'VlaamsParlement'
 
 PROCESS_TYPE = "parser"
 
@@ -14,7 +14,7 @@ INGEST_DATA = JSON.parse(ingestJson, :symbolize_names => true)
 
 def parse_recent_queries( options: {})
     options = { 
-        date: "????",
+        date: "*/**",
         collection_type: "recent"
     }
     parse_queries(options: options)
@@ -36,28 +36,26 @@ def parse_queries(options: {})
             rule_set = @icandid_config.config[:rule_set].constantize 
         end
 
-        options[:type] = "Message"
-        options[:tiktokusers] = {}
-        
+        options[:type] = "Legislation"
+
         @icandid_config.queries_to_process.each do |query|
             @icandid_config.config[:query] = query
             @icandid_config.ingest_data[:dataset][:@id]  = query[:query][:id]
             @icandid_config.ingest_data[:dataset][:name] = query[:query][:name].gsub(/_/," ").capitalize()
 
-            options[:download_video] = @icandid_config.config[:query][:download_video] 
-
             @icandid_config.update_config_with_query_data( query: query, options: options )    
 
             @logger.info ("Parse records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
-            
-            icandid_input  = IcandidCollector::Input.new( :icandid_config => @icandid_config)
-         
+            icandid_input  = IcandidCollector::Input.new( :icandid_config => @icandid_config)#
+           
             @logger.info ("Start parsing query: #{ query[:query][:name] } ")
             @logger.info ("Start parsing source_records_dir: #{@icandid_config.config[:source_records_dir]} ")
             @logger.info ("Start parsing source_file_name_pattern: #{@icandid_config.config[:source_file_name_pattern]} ")
 
             icandid_input.process_files( options: options  )
-
+            @total_nr_parsed_files = @total_nr_parsed_files + icandid_input.total_nr_parsed_files
+            @logger.info ("#{@total_nr_parsed_files} files parsed")
+            @logger.info ("#{@icandid_config.config[:nbr_created_records]} records created")
             @logger.info ("Start parsing next NEXT NEXT ")
 
         end
@@ -71,38 +69,32 @@ begin
 
     @logger = Logger.new(STDOUT)
     @logger.level = Logger::DEBUG
-    @total_nr_parsed_records = 0    
-    @icandid_utils  = IcandidCollector::Utils.new()
+    @total_nr_parsed_files = 0    
+    
+    
 
     config = {
         :config_path => File.join(ROOT_PATH, "./config/#{provider}")
     }
 
-    @icandid_config = IcandidCollector::Configs.new( :config => config , :ingest_data => INGEST_DATA) 
+    @icandid_config = IcandidCollector::Configs.new( :config => config , :ingest_data => INGEST_DATA)
+    @icandid_input  = IcandidCollector::Input.new( :icandid_config => @icandid_config.config ) 
+    @icandid_utils  = IcandidCollector::Utils.new( :icandid_config => @icandid_config.config )
+
     
     @logger.info ("Start parsing using config: #{ File.join( config[:config_path] , "config.yml") }")
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
     @logger.info ("Parsing for queries in : #{File.join( @icandid_config.query_config.path , @icandid_config.query_config.name) }")
     
-    @icandid_config.queries_to_process.map! do |query|
-        query[:query][:value] = query[:query][:value].is_a?(String) ? JSON.parse(  query[:query][:value]  ) : query[:query][:value]
-        query[:query][:value]["max_count"] = @icandid_config.config[:records_per_page]
-        query[:query][:value]["cursor"] = 0
-        query[:query][:value]["search_id"] = ""
-        query
-    end
 
     options = {
         prefixid: "#{@icandid_config.ingest_data[:prefixid]}_#{ @icandid_config.ingest_data[:provider][:@id].downcase }_#{ @icandid_config.ingest_data[:dataset][:@id].downcase }",
         ingest_data: @icandid_config.ingest_data
     }
 
-    unless @icandid_config.config[:source_records_dir]  =~ /\/backlog(\/|$)/        
-        # parse_recent_queries(options: options)
-    end
-    
-
-    parse_backlog_queries(options: options)
+    # split to avoid looking for new files in the backlog directories
+    parse_recent_queries(options: options)
+#    parse_backlog_queries(options: options)
     
     @icandid_config.queries_to_process.map! do |query|
         query[:last_parsing_datetime] = start_processing
@@ -110,5 +102,47 @@ begin
     end
     @icandid_config.update_query_config
 
-end
+  
+rescue StandardError => e
+    @logger.error("#{ e.message  }")
+    @logger.error("#{ e.backtrace.inspect   }")
+  
+    importance = "High"
+    subject = "[ERROR] iCANDID #{@icandid_config.ingest_data[:provider][:name]} parsing"
+    message = <<END_OF_MESSAGE
+    
+    <h2>Error while parsing #{@icandid_config.ingest_data[:provider][:name]} data</h2>
+    <p>#{e.message}</p>
+    <p>#{e.backtrace.inspect}</p>
+    
+    <hr>
+    
+END_OF_MESSAGE
+  
+    @icandid_utils.mailErrorReport(subject, message, importance, @icandid_config) 
+    @logger.info("#{@icandid_config.ingest_data[:provider][:name]} Parsing is finished with errors")
 
+ensure
+  
+    importance = "Normal"
+    subject = "iCANDID #{@icandid_config.ingest_data[:provider][:name]} parsing [#{@total_nr_parsed_files} => #{@icandid_config.config[:nbr_created_records]}]"
+    message = <<END_OF_MESSAGE
+    
+    <h2>Parsing #{@icandid_config.ingest_data[:provider][:name]} [#{@icandid_config.ingest_data[:provider][:@id]}] data</h2>
+    Parsing using config: : #{File.join( @icandid_config.query_config.path , "config.yml") }"
+  <H3>#{$0} </h3>
+  command_line_options :<br/> #{ @icandid_config.command_line_options.map { |k, v|  "  - #{k}: #{v} </br>" }.join   }
+    <br/>
+    total_nr_parsed_files : #{@total_nr_parsed_files}
+    <br/>
+    nbr_created_records : #{@icandid_config.config[:nbr_created_records]}
+
+  
+    <hr>
+  
+END_OF_MESSAGE
+
+    @icandid_utils.mailErrorReport(subject, message, importance, @icandid_config)
+    # @logger.info("#{icandid_config.ingest_data[:provider][:name]} Parsing is finished without errors")
+  
+end

@@ -90,6 +90,10 @@ begin
         ingest_data: @icandid_config.ingest_data
     }
 
+    pp "##################################################################"
+    pp " Not yet implemented or tested "
+    pp "##################################################################"
+    exit
     parse_recent_queries(options: options)
     parse_backlog_queries(options: options)
     

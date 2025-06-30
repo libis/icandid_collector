@@ -70,20 +70,18 @@ RULE_SET_v1_0 = {
                         # pp i
                         {
                             :@type => "PropertyValue",
-                            :@id   => "teneo_code",
-                            :name  => "Teneo Code",
+                            :@id   => "teneo_id",
+                            :name  => "Teneo ID",
                             :value => i.gsub('.tif','')
                         }
                     })
 
-                unless out.data[:identifier].select{ |i|  i[:name] == "Teneo Code" }.empty?
-                    out.data[:identifier] = out.data[:identifier].reject{ |i| i[:name] == "Teneo Code [Extracted From Repositorycode]" }
+                unless out.data[:identifier].select{ |i|  i[:name] == "Teneo ID" }.empty?
+                    out.data[:identifier] = out.data[:identifier].reject{ |i| i[:name] == "Teneo ID [Extracted From Repositorycode]" }
                 end
 
             end
             rdata.merge!(out.data)
-
-#            pp rdata[:datePublished]
 
             if rdata[:inLanguage].nil?
                 langcode = rdata["@context"]["@language"]
@@ -133,8 +131,8 @@ RULE_SET_v1_0 = {
                         },
                         {
                             :@type => "PropertyValue",
-                            :@id   => "teneo_code",
-                            :name  => "Teneo Code [Extracted From Repositorycode]",
+                            :@id   => "teneo_id",
+                            :name  => "Teneo ID [Extracted From Repositorycode]",
                             :value => "#{id}"
                         }
                     ]
@@ -168,7 +166,7 @@ RULE_SET_v1_0 = {
                 :@value => d,
                 :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script][0]}"
             }
-        }},
+        }}, 
         datePublished: '$.archdesc.descgrp..unitdate..p',
         inLanguage:    {'$.archdesc.descgrp..langmaterial..p' =>  lambda { |d,o|
 
@@ -195,10 +193,28 @@ RULE_SET_v1_0 = {
         }},
         material:  [ '$.archdesc.descgrp..genreform..p', '$.archdesc.descgrp..phystech..p'  ],
         materialExtent: '$.archdesc.descgrp..extent..p',
-        acquiredFrom: '$.archdesc.descgrp..custodhist..p',       
+        # acquiredFrom: '$.archdesc.descgrp..custodhist..p',        => Only 1520249.xml contains this tag 
         keywords: '$.archdesc.controlaccess..controlaccess.extref.persname.$text',
         sameAs:   '$.eadheader.daoset.dao[?(@._daotype=="otherdaotype")]._href',
-        description:   {'$.archdesc.descgrp..note..p' =>  lambda { |d,o| 
+        description: [{'$.archdesc.descgrp..note..p' =>  lambda { |d,o| 
+            out = DataCollector::Output.new
+                rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
+                {
+                    :@value => d,
+                    :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script][0]}"
+                }
+            }},
+            {'$.archdesc.descgrp..scopecontent..p' =>  lambda { |d,o| 
+                out = DataCollector::Output.new
+                rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
+                {
+                    :@value => d,
+                    :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script][0]}"
+                }
+            }}
+        ],
+=begin
+        about: {'$.archdesc.descgrp..scopecontent..p' =>  lambda { |d,o| 
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
             {
@@ -206,10 +222,11 @@ RULE_SET_v1_0 = {
                 :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script][0]}"
             }
         }},
+=end
         associatedMedia: {  '$.eadheader.daoset.dao[?(@._daotype=="derived")]._href' =>  lambda { |d,o|
             {
                 :@type => "MediaObject",
-                :embedUrl => d
+                :contentUrl => d
             }     
         }}
            
