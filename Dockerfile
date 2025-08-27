@@ -10,7 +10,7 @@ RUN cp /usr/share/zoneinfo/CET /etc/localtime
 # RUN apt-get update
 #RUN apt-get install sgrep
 
-RUN apt-get update -qq && apt-get install -y build-essential libpq-dev libaio1 unzip
+RUN apt-get update -qq && apt-get install -y build-essential libpq-dev libaio1 unzip ffmpeg
 
 RUN mkdir /opt/oracle
 ADD oracle/*.zip /opt/oracle/
@@ -30,10 +30,11 @@ RUN bundle install
 
 WORKDIR $APP_HOME
 COPY src ./src
+
 RUN ls -l /app/src/
 
-COPY ./tom_vanmechelen/data_collector ./data_collector
-RUN cd ./data_collector; gem build data_collector.gemspec; gem install data_collector-0.53.0.gem
+# COPY ./tom_vanmechelen/data_collector ./data_collector
+# RUN cd ./data_collector; gem build data_collector.gemspec; gem install data_collector-0.53.0.gem
 
 
 

@@ -14,6 +14,7 @@
 /data
 notes.txt
 /.env_collector
+/_*
 
 
 

@@ -48,7 +48,27 @@ module IcandidCollector
       end
     end
 
-
+    def csv_file_to_hash(file, seprator=",", encoding="UTF-8")
+      begin
+          @raw = rdata = File.read("#{file}", :encoding => encoding).scrub
+  
+          #@logger.debug("csv_file_to_hash #{encoding} #{file}") 
+          orig_encoding = rdata.encoding
+          rdata.force_encoding("UTF-8")
+          unless rdata.valid_encoding?
+            raise (" file encoding has invalid UTF-8")
+          end
+  
+  #        rdata = rdata.gsub('\"', "'")
+          data = CSV.parse(rdata, headers: true, col_sep: seprator)
+          data.map(&:to_h)
+      rescue StandardError => msg
+          puts "Error csv_file_to_hash: unable to read CSV #{file}"
+          puts "msg: #{msg}"
+          {}
+      end
+    end
+    
     def languageDetection( data, options )
       begin
         #@logger.debug("Start detect language #{ options[:language_detection_url]} OR #{ options[:language_detection_service] }")

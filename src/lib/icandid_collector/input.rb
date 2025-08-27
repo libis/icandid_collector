@@ -269,39 +269,68 @@ module IcandidCollector
     def select_files_from_source_records_dir(source_records_dir: nil, source_file_name_pattern: nil,  last_parsing_datetime: nil )
      
       files = []
-      unless icandid_config.config[:query][:last_parsing_datetime].nil?
-        last_parsing_datetime = Date.parse( icandid_config.config[:query][:last_parsing_datetime].strip )
+
+      # Parse last_parsing_datetime from config if not provided
+      last_parsing_datetime ||= begin
+        val = icandid_config.config.dig(:query, :last_parsing_datetime)
+        Date.parse(val.strip) if val
       end
+
+      #unless icandid_config.config[:query][:last_parsing_datetime].nil?
+      #  last_parsing_datetime = Date.parse( icandid_config.config[:query][:last_parsing_datetime].strip )
+      #end
 
       @logger.debug ("Select files from: #{source_records_dir}/*")
       @logger.debug ("Select files with last_parsing_datetime: #{last_parsing_datetime}")
       
       source_files = Dir["#{source_records_dir}/*"]
 
-      unless icandid_config.config[:source_records_dir] =~ /\/processed(\/|$)/
-        @logger.debug ("Do not select files with 'processed' in the pathname: #{source_records_dir}")
-        source_files = source_files.filter { |source_file|  source_file !~ /\/processed(\/|$)/ }
+      # Filter out 'processed' directories unless already in one
+      unless icandid_config.config[:source_records_dir] =~ %r{/processed(/|$)}
+        @logger.debug("Do not select files with 'processed' in the pathname: #{source_records_dir}")
+        source_files.reject! { |f| f =~ %r{/processed(/|$)} }
       end
 
-      source_files.each do |source_file| 
-        if File.directory?( source_file )
-          unless source_records_dir =~ /\/\*\*(\/|$)/
-            if source_file =~ /\/processed(\/|$)/
-              @logger.debug ("Do not select files with 'processed' in the pathname: #{source_file}")
-              next
-            end
-            if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
-              files.concat select_files_from_source_records_dir( source_records_dir: source_file, source_file_name_pattern: source_file_name_pattern,  last_parsing_datetime: last_parsing_datetime )
-            end
+      source_files.each do |source_file|
+        if File.directory?(source_file)
+          next if source_records_dir =~ %r{/\*\*(/|$)}
+          next if source_file =~ %r{/processed(/|$)}
+          if last_parsing_datetime.nil? || last_parsing_datetime < File.mtime(source_file)
+            files.concat select_files_from_source_records_dir(
+              source_records_dir: source_file,
+              source_file_name_pattern: source_file_name_pattern,
+              last_parsing_datetime: last_parsing_datetime
+            )
           end
         else
-          if Regexp.new(source_file_name_pattern).match(File.basename(source_file))
-            if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
+          if File.basename(source_file) =~ Regexp.new(source_file_name_pattern)
+            if last_parsing_datetime.nil? || last_parsing_datetime < File.mtime(source_file)
               files << source_file
             end
           end
         end
       end
+
+      #source_files.each do |source_file| 
+      #  if File.directory?( source_file )
+      #    unless source_records_dir =~ /\/\*\*(\/|$)/
+      #      if source_file =~ /\/processed(\/|$)/
+      #        @logger.debug ("Do not select files with 'processed' in the pathname: #{source_file}")
+      #        next
+      #      end
+      #      if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
+      #        files.concat select_files_from_source_records_dir( source_records_dir: source_file, source_file_name_pattern: source_file_name_pattern,  last_parsing_datetime: last_parsing_datetime )
+      #      end
+      #    end
+      #  else
+      #    if Regexp.new(source_file_name_pattern).match(File.basename(source_file))
+      #      if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
+      #        files << source_file
+      #      end
+      #    end
+      #  end
+      #end
+
       @logger.debug ("number of selected files to process: #{files.uniq.size}")
       files.uniq
     end

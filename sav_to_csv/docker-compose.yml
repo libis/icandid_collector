@@ -1,0 +1,11 @@
+services:
+# Upload tar and metadata.json files to iRODS
+  sav_to_csv:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/app/src      
+      - ./data:/data
+    env_file:
+      - env

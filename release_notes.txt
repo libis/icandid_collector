@@ -31,3 +31,15 @@ VERSION_TAG
 
 ## v3.1_20250402 ##
 => update options in rules while parsing
+
+## v3.1_20250502 ##
+=> download tiktok video
+
+## v3.1_20250515 ##
+=> download tiktok users and comments
+
+## v3.1_20250526 ##
+=> download tiktok bug
+
+## v3.1_20250826 ##
+=> ena_parser
