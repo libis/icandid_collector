@@ -107,9 +107,9 @@ module IcandidCollector
           raise "url is required to download_file_from_uri"
         end
         if download_path.nil?
-          raise "download_path is required to collect_datdownload_file_from_uria_from_uri"
+          raise "download_path is required to collect_data_from_uri"
         end
-        
+
         if options[:method].nil?
           options[:method] = "GET"
         end
@@ -126,10 +126,29 @@ module IcandidCollector
         http = HTTP
         ctx = nil
         http_query_options = {}
-
+       
         if options.key?(:headers)
           # @logger.debug "Set http headers"
           http = http.headers(options[:headers])
+        end
+        
+        if File.exist?(download_path)
+          @logger.debug ("Download from #{url} ")
+          @logger.debug ("File already exists #{ download_path } ")
+          
+          http_response = http.follow.head(url)
+          case http_response.code
+          when 200..299
+            content_length =  http_response['content-length']
+          end
+          content_length ? content_length.to_i : nil
+
+          if File.size(download_path) == content_length
+            @logger.debug ("File already exists and is the correct size. Skipping download. #{ download_path } ")
+            file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : get_file_type(http_response.headers)
+            header_filename = filename_from(http_response.headers)
+            return { download_path: download_path, content_type: file_type, header_filename: header_filename }
+          end
         end
 
         if options.key?(:method) && options[:method].downcase.eql?('post')
