@@ -5,6 +5,7 @@ RUN addgroup app --gid 10000 && adduser app --home /app --uid 10000 --ingroup ap
 USER app:app
 RUN pip install pyreadstat
 
+WORKDIR /app
 
 ADD ./src/ ./src
 

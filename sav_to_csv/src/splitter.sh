@@ -1,26 +1,51 @@
-
 #!/bin/bash
 
 # Save original IFS and set newline as separator
 OIFS="$IFS"
 IFS=$'\n'
 
+# Usage:
+# ./spitter.sh Actoren_all.csv "2022 2023"
+
+# Check for required arguments
+if [ "$#" -lt 3 ]; then
+  echo "Usage: $0 <INPUT_FILE> \"<year1> <year2> ...\""
+  exit 1
+fi
+
+# Input parameters
+INPUT_FILE="$1"
+shift 1
+years=($@)
+
+# Check for required arguments
+if [ "$#" -lt 3 ]; then
+  echo "Usage: $0 <INPUT_FILE> \"<year1> <year2> ...\""
+  exit 1
+fi
+
+# Check if INPUT_FILE is a .csv file
+if [[ "$INPUT_FILE" != *.csv ]]; then
+  echo "Fout: INPUT_FILE moet een .csv bestand zijn."
+  exit 1
+fi
+
+# Input parameters
+INPUT_FILE="$1"
+shift 1
+years=($@)
+
+echo ${INPUT_FILE}
+
 # Change to working directory
-cd /data || exit 1
-
-# Define years to process
-years=("2003" "2004" "2005" "2006" "2007" "2008" "2009" "2010" "2011" "2012" "2013" "2014" "2015" "2016" "2017" "2018" "2019" "2020" "2021" "2022")
-years=("2023" "2022")
-
-# Define input files
-A_FILE="Actoren_all.csv"
-T_FILE="Thema_all.csv"
+#cd /data || exit 1
 
 # Function to fix malformed lines in a CSV file
 fix_file() {
   local inputfile="$1"
   local outputfile="fixed_${inputfile}"
 
+  echo $outputfile
   awk '
   NR == 1 { print; next }
   {
@@ -37,24 +62,26 @@ fix_file() {
 }
 
 # Fix both files
-fix_file "$T_FILE"
-fix_file "$A_FILE"
+fix_file "$INPUT_FILE"
+
+
+# Get filename without extension or path
+input_basename="$(basename "$INPUT_FILE" .csv)"
+input_dir="$(dirname "$INPUT_FILE")"
+fixed_t_file="${input_dir}/fixed_${INPUT_FILE}"
+
 
 # Process each year
+
 for year in "${years[@]}"; do
-  echo "Processing Thema for ${year}"
-  fixed_t_file="fixed_${T_FILE}"
-  thema_output="${year}_thema.csv"
+  echo "Processing ${INPUT_FILE} for ${year}"
+  echo "Use ${fixed_t_file}"
 
-  head -n 1 "$fixed_t_file" > "$thema_output"
-  grep "^[1,2]${year: -2}" "$fixed_t_file" >> "$thema_output"
+  output_file="${input_dir}/${year}_${input_basename}.csv"
+  echo "Output to ${output_file}"
 
-  echo "Processing Actoren for ${year}"
-  fixed_a_file="fixed_${A_FILE}"
-  actoren_output="${year}_actoren.csv"
-
-  head -n 1 "$fixed_a_file" > "$actoren_output"
-  grep "^[1,2]${year: -2}" "$fixed_a_file" >> "$actoren_output"
+  head -n 1 "$fixed_t_file" > "$output_file"
+  grep "^[1,2]${year: -2}" "$fixed_t_file" >> "$output_file"
 done
 
 # Restore original IFS
