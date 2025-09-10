@@ -258,11 +258,13 @@ RULE_SET_v1_0 = {
                     "Hoofdpunt"
                 end
             } },
-            { "$.encyclopedie" =>  lambda { |d,o| 
-                d.split(/[,;:\n]/).map(&:strip) 
-            } },
+            { "$.encyclopedie" =>  lambda { |d,o|
+                unless d.nil?
+                    d.split(/[,;:\n]/).map(&:strip) 
+                end
+            } }
         ],
-        duration: { "duurtijd" =>  lambda { |d,o| 
+        duration: { "$.duurtijd" =>  lambda { |d,o| 
             ISO8601::Duration.new( d.to_i ).to_s
         } }
     },
