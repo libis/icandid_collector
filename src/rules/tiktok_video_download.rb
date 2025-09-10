@@ -54,6 +54,7 @@ RULE_SET_VIDEO_DOWNLOAD_v0_1 = {
                     FileUtils.mkdir_p(output_path) unless File.directory?(output_path)
                     FileUtils.chmod(0755, output_path) unless File.writable?(output_path)
                     begin
+                        retries ||= 0
                         headers = {}
                         http = HTTP
 
@@ -61,8 +62,9 @@ RULE_SET_VIDEO_DOWNLOAD_v0_1 = {
 
                         all_cookies = http_response.cookies
                         data = http_response.body.to_s
-                        # puts data
+                        
                         raw_data = Nokogiri::HTML(data)
+
                         jdata = JSON.parse( raw_data.xpath("/html/body/script[@id='__UNIVERSAL_DATA_FOR_REHYDRATION__']").text )
 
                         id = jdata["__DEFAULT_SCOPE__"]['webapp.video-detail']&.[]('itemInfo')&.[]('itemStruct')&.[]('id')
@@ -72,7 +74,14 @@ RULE_SET_VIDEO_DOWNLOAD_v0_1 = {
                             pp "Video and/or user may be deleted."
                             return
                         end
+                        if video.nil?
+                            pp "Error: Video ID #{ d["id"]} not found in the response. #{message_url}"
+                            pp "jdata['__DEFAULT_SCOPE__']['webapp.video-detail']&.[]('itemInfo')&.[]('itemStruct')&.[]('video')"
+                            return
+                        end
+
                     rescue Exception => e
+                        retry if (retries += 1) < 3
                         pp "Error parsing JSON data: #{e.message}"
                     end
 
