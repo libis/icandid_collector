@@ -133,15 +133,18 @@ def process_query(icandid_config: nil, query: nil, options: {})
                         # {{base_url}}/sessions/{{session_id}}/pages/{{page_number}}.
                         # Concatenate the 'text' field from each response into the final record's 'text' property.
 
+                        input_options[:page_number] = 1
+                        icandid_config.update_config_with_query_data(query: query, options: input_options)
+                        
                         @logger.debug("Downloading text page by page for #{d['id']} using #{icandid_config.config[:page_url]}")
-
+                        
                         text = (1..d['page_count']).map do |page_number|
                             input_options[:page_number] = page_number
                             icandid_config.update_config_with_query_data(query: query, options: input_options)
                             record_page_url = icandid_config.config[:page_url]
                             page_data = icandid_input.collect_data_from_uri(url: record_page_url, options: input_options)
                             page_data['text'].to_s
-                        end.join
+                        end.join("\n--- PAGE BREAK ---\n")
 
                         d['text'] = text
 
