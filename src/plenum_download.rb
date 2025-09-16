@@ -69,6 +69,7 @@ def process_query(icandid_config: nil, query: nil, options: {})
        
     url = icandid_config.config[ options[:download_url_prop].to_sym ]
 
+    last_retreived_date = query[:params][:start_date].to_date
     while (url)
         
         @logger.info ("Start Download from url: #{ url } ")
@@ -82,13 +83,41 @@ def process_query(icandid_config: nil, query: nil, options: {})
         data = icandid_input.collect_data_from_uri(url: url,  options: input_options )
 
         if data.nil?
-            @logger.warn "NO DATA AVAILABLE on this url #{url}"
+            @logger.warn "No data available at URL: #{url}"
+
+            http_response = HTTP.follow.get(url)
+            @logger.warn "HTTP response code: #{http_response.code} [#{http_response.reason}]"
+
+            start_date = query[:params][:start_date].to_date
+            end_date = query[:params][:end_date].to_date
+
+            if last_retreived_date == start_date
+                @logger.warn "Query likely already completed or check the page parameter."
+                break
+            end
+
+            @logger.debug "Last retrieved date: #{last_retreived_date}"
+            @logger.debug "Query end date: #{end_date}"
+
+            if last_retreived_date <= start_date
+                @logger.warn "All records downloaded for this query !!!!"
+
+                query[:params][:completed] = true
+                query[:params][:page] = nil
+
+                icandid_config.update_query_config
+                url = nil
+                next
+            end
             break
-        end
-   
+         end    
+
+        
         unless (data.empty?)
             # Expand resultsdata to records with body
-           
+
+            last_retreived_date = data.min_by { |r| Date.parse(r["date"] ) }["date"].to_date
+
             data.map!{ |d|
                 unless  d["id"].nil?
                     input_options[:session_id] = d["id"]
@@ -98,10 +127,24 @@ def process_query(icandid_config: nil, query: nil, options: {})
                     record_pdf_url = icandid_config.config[:pdf_url]
 
                     unless record_txt_url.nil?
-                        @logger.debug ("download #{record_txt_url} [txt] for #{d["id"]} ")
-                        http = HTTP
-                        http_response = http.follow.get(record_txt_url, {})
-                        d['text'] = http_response.body.to_s
+                        
+                        # The endpoint {{base_url}}/sessions/{{session_id}}/txt [record_txt_url] may return incomplete data (deprecated).
+                        # To ensure complete retrieval, fetch text page by page via:
+                        # {{base_url}}/sessions/{{session_id}}/pages/{{page_number}}.
+                        # Concatenate the 'text' field from each response into the final record's 'text' property.
+
+                        @logger.debug("Downloading text page by page for #{d['id']} using #{icandid_config.config[:page_url]}")
+
+                        text = (1..d['page_count']).map do |page_number|
+                            input_options[:page_number] = page_number
+                            icandid_config.update_config_with_query_data(query: query, options: input_options)
+                            record_page_url = icandid_config.config[:page_url]
+                            page_data = icandid_input.collect_data_from_uri(url: record_page_url, options: input_options)
+                            page_data['text'].to_s
+                        end.join
+
+                        d['text'] = text
+
                     end
 
                     unless record_pdf_url.nil?

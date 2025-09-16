@@ -43,3 +43,6 @@ VERSION_TAG
 
 ## v3.1_20250826 ##
 => ena_parser
+
+## v3.1_20250916 ##
+=> plemun retrieve text page by page
