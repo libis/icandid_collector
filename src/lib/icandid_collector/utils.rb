@@ -26,7 +26,9 @@ module IcandidCollector
         end
 
         if icandid_config[:tika_url].nil?
-          unless icandid_config[:tika_server].nil?
+          if icandid_config[:tika_server].nil?
+            raise "tika_server missing in configuration"
+          else
             icandid_config[:tika_url] = "https://#{ icandid_config[:tika_server] }/tika"
           end
         end
