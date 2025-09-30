@@ -138,6 +138,12 @@ RULE_SET_v1_1 = {
             end
 
 
+            opendata_link_verslag = opendata_out[:link_verslag]&.first 
+            opendata_link_verslag = nil if opendata_link_verslag&.include?("Error") 
+
+            opendata_link_self = opendata_out[:link_self]&.first
+            opendata_link_self = nil if opendata_link_self&.include?("Error") 
+
             rdata[:sameAs] = d["url"]
 
             rules_ng.run(RULE_SET_v1_1[:rs_record_data], reorgenizeddata, out, o)
@@ -198,8 +204,10 @@ RULE_SET_v1_1 = {
                 opendata_id = opendata_out[:id]&.first
                 opendata_document = opendata_out[:document]&.first
                 unless opendata_document.nil?
-                    unless opendata_out[:link_verslag].nil? || opendata_out[:link_self].nil?
+                    unless opendata_link_verslag.nil? || opendata_link_self.nil?
                         @logger.warn ("opendata_out has also link_verslag and link_self. Get dat from data[\"verslag-tekst\"] ? ")
+                        pp "Not yet implemented"
+                        pp "-------------------- record d---- -----------------------------------------------------"
                         exit
                     end
                     if (
@@ -272,9 +280,7 @@ RULE_SET_v1_1 = {
             end
     
             if rdata[:text].nil?
-                unless opendata_out[:link_verslag].nil? || opendata_out[:link_self].nil?
-                    opendata_link_verslag = opendata_out[:link_verslag].first
-                    opendata_link_self = opendata_out[:link_self].first
+                unless opendata_link_verslag.nil? || opendata_link_self.nil?
                     
                     ids = o[:source_id].match(/http:\/\/be.vlp.feed\/(\d*)\/pfls\/(\d*)/)
                     id = opendata_link_self.split("/").last
