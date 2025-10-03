@@ -42,6 +42,12 @@ def parse_queries(options: {})
               next
             end
 
+            unless query[:query][:name].nil?
+              dataset_id = query[:query][:id]
+              @icandid_config.ingest_data[:dataset][:@id] = dataset_id.start_with?("ENA_") ? dataset_id : "#{"ENA_"}#{dataset_id}"
+              @icandid_config.ingest_data[:dataset][:name] = query[:query][:name].gsub(/_/," ").capitalize()
+            end
+
             @icandid_config.update_config_with_query_data( query: query, options: options )    
 
             @logger.info ("Parse records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")

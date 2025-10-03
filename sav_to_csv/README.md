@@ -8,4 +8,4 @@ docker compose run --rm sav_to_csv python spss_to_csv.py -i /data/Actor_42022-20
 docker compose run --rm sav_to_csv python spss_to_csv.py -i /data/Thema_042022-2023.sav Thema_all.csv
 docker compose run --rm sav_to_csv python spss_to_csv.py -i /data/Actor_42022-2023.sav Actoren_all.csv
 
-docker compose run --rm sav_to_csv /data/splitter.sh
+docker compose run --rm sav_to_csv /src/splitter.sh

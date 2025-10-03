@@ -14,7 +14,9 @@ module IcandidCollector
     end
 
     def tikaFullTextExtraction( data, options ) 
+      attempts = 0
       begin
+        attempts += 1
         if options.has_key?(:file)
           downloadfile = options[:file]
           if File.file?(downloadfile) 
@@ -44,8 +46,11 @@ module IcandidCollector
         end
       rescue StandardError => e
         @logger.error("#{ e.message  }")
+        if attempts < 5
+          @logger.error("Retry [ #{ attempts  } ]")
+          retry 
+        end
         @logger.error("#{ e.backtrace.inspect   }")
-        pp e.message
         raise e.message
       end
     end

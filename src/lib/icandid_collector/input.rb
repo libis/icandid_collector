@@ -94,7 +94,7 @@ module IcandidCollector
             @logger.error(  e.message )
             raise e.message
           end
-        else         
+        else
           raise e.message
         end
       end

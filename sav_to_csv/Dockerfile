@@ -4,6 +4,8 @@ FROM python:3.13.5-bookworm
 RUN addgroup app --gid 10000 && adduser app --home /app --uid 10000 --ingroup app
 USER app:app
 RUN pip install pyreadstat
+RUN pip install pandas
+
 
 WORKDIR /app
 

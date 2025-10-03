@@ -66,26 +66,27 @@ RULE_SET_v1_0 = {
                 date_published = date_published.strftime('%Y-%m-%d') if date_published
             end
 
-            if d["codenummer"][0] == "1" 
-                publisher = o[:publisher][:vtm]  
-                o[:ingest_data][:dataset] = {
-                    "@id": "ena_vtm",
-                    "@type": "Dataset",
-                    "name":  "ENA_VTM"
-                }
-                o[:ingest_data][:genericRecordDesc] = "Entry from Elektronisch Nieuwsarchief - VTM"
+            if o[:ingest_data][:dataset][:@id] == "ENA"
+                if d["codenummer"][0] == "1" 
+                    publisher = o[:publisher][:vtm]  
+                    o[:ingest_data][:dataset] = {
+                        "@id": "ena_vtm",
+                        "@type": "Dataset",
+                        "name":  "ENA_VTM"
+                    }
+                    o[:ingest_data][:genericRecordDesc] = "Entry from Elektronisch Nieuwsarchief - VTM"
+                end
+                if d["codenummer"][0] == "2"
+                    publisher = o[:publisher][:vrt]  
+                    o[:ingest_data][:dataset] =  {
+                        "@id": "ena_vrt",
+                        "@type": "Dataset",
+                        "name":  "ENA_VRT"
+                    }
+                    
+                    o[:ingest_data][:genericRecordDesc] = "Entry from Elektronisch Nieuwsarchief - VRT"
+                end
             end
-            if d["codenummer"][0] == "2"
-                publisher = o[:publisher][:vrt]  
-                o[:ingest_data][:dataset] =  {
-                    "@id": "ena_vrt",
-                    "@type": "Dataset",
-                    "name":  "ENA_VRT"
-                }
-                
-                o[:ingest_data][:genericRecordDesc] = "Entry from Elektronisch Nieuwsarchief - VRT"
-            end
-            
             o[:prefixid] = "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:dataset][:@id].downcase }_#{o[:id]}".gsub("_ena_","_ENA_")
 
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
