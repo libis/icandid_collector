@@ -237,7 +237,23 @@ RULE_SET_v1_1 = {
                         number_of_retries: 3,
                         headers: {"Content-Type" => "application/json", "accept-encoding" => "UTF-8", "Accept" => "application/json"}
                     }
-                    opendata_data =  @icandid_input.collect_data_from_uri(url: opendata_url , options: input_options )
+                    begin
+                        opendata_data =  @icandid_input.collect_data_from_uri(url: opendata_url , options: input_options )
+                    rescue DataCollector::InputError => e                        
+                        @logger.error (e)
+                        exit
+                    rescue RuntimeError => e               
+                        if e.message == "Not found"
+                            @logger.warn ("#{opendata_url} not found")
+                        else   
+                            @logger.error (e.message )
+                            @logger.error ("could not retrieve #{opendata_url}")
+                            exit
+                        end
+                    rescue Exception => e
+                        @logger.error (e)
+                        exit
+                    end
                     
                     #pp "opendata_data"
                     #pp opendata_data["filewebpath"]
