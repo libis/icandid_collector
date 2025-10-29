@@ -94,7 +94,7 @@ module IcandidCollector
             @logger.error(  e.message )
             raise e.message
           end
-        else         
+        else
           raise e.message
         end
       end
@@ -107,9 +107,9 @@ module IcandidCollector
           raise "url is required to download_file_from_uri"
         end
         if download_path.nil?
-          raise "download_path is required to collect_datdownload_file_from_uria_from_uri"
+          raise "download_path is required to collect_data_from_uri"
         end
-        
+
         if options[:method].nil?
           options[:method] = "GET"
         end
@@ -126,10 +126,29 @@ module IcandidCollector
         http = HTTP
         ctx = nil
         http_query_options = {}
-
+       
         if options.key?(:headers)
           # @logger.debug "Set http headers"
           http = http.headers(options[:headers])
+        end
+        
+        if File.exist?(download_path)
+          @logger.debug ("Download from #{url} ")
+          @logger.debug ("File already exists #{ download_path } ")
+          
+          http_response = http.follow.head(url)
+          case http_response.code
+          when 200..299
+            content_length =  http_response['content-length']
+          end
+          content_length ? content_length.to_i : nil
+
+          if File.size(download_path) == content_length
+            @logger.debug ("File already exists and is the correct size. Skipping download. #{ download_path } ")
+            file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : get_file_type(http_response.headers)
+            header_filename = filename_from(http_response.headers)
+            return { download_path: download_path, content_type: file_type, header_filename: header_filename }
+          end
         end
 
         if options.key?(:method) && options[:method].downcase.eql?('post')
@@ -269,39 +288,68 @@ module IcandidCollector
     def select_files_from_source_records_dir(source_records_dir: nil, source_file_name_pattern: nil,  last_parsing_datetime: nil )
      
       files = []
-      unless icandid_config.config[:query][:last_parsing_datetime].nil?
-        last_parsing_datetime = Date.parse( icandid_config.config[:query][:last_parsing_datetime].strip )
+
+      # Parse last_parsing_datetime from config if not provided
+      last_parsing_datetime ||= begin
+        val = icandid_config.config.dig(:query, :last_parsing_datetime)
+        Date.parse(val.strip) if val
       end
+
+      #unless icandid_config.config[:query][:last_parsing_datetime].nil?
+      #  last_parsing_datetime = Date.parse( icandid_config.config[:query][:last_parsing_datetime].strip )
+      #end
 
       @logger.debug ("Select files from: #{source_records_dir}/*")
       @logger.debug ("Select files with last_parsing_datetime: #{last_parsing_datetime}")
       
       source_files = Dir["#{source_records_dir}/*"]
 
-      unless icandid_config.config[:source_records_dir] =~ /\/processed(\/|$)/
-        @logger.debug ("Do not select files with 'processed' in the pathname: #{source_records_dir}")
-        source_files = source_files.filter { |source_file|  source_file !~ /\/processed(\/|$)/ }
+      # Filter out 'processed' directories unless already in one
+      unless icandid_config.config[:source_records_dir] =~ %r{/processed(/|$)}
+        @logger.debug("Do not select files with 'processed' in the pathname: #{source_records_dir}")
+        source_files.reject! { |f| f =~ %r{/processed(/|$)} }
       end
 
-      source_files.each do |source_file| 
-        if File.directory?( source_file )
-          unless source_records_dir =~ /\/\*\*(\/|$)/
-            if source_file =~ /\/processed(\/|$)/
-              @logger.debug ("Do not select files with 'processed' in the pathname: #{source_file}")
-              next
-            end
-            if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
-              files.concat select_files_from_source_records_dir( source_records_dir: source_file, source_file_name_pattern: source_file_name_pattern,  last_parsing_datetime: last_parsing_datetime )
-            end
+      source_files.each do |source_file|
+        if File.directory?(source_file)
+          next if source_records_dir =~ %r{/\*\*(/|$)}
+          next if source_file =~ %r{/processed(/|$)}
+          if last_parsing_datetime.nil? || last_parsing_datetime < File.mtime(source_file)
+            files.concat select_files_from_source_records_dir(
+              source_records_dir: source_file,
+              source_file_name_pattern: source_file_name_pattern,
+              last_parsing_datetime: last_parsing_datetime
+            )
           end
         else
-          if Regexp.new(source_file_name_pattern).match(File.basename(source_file))
-            if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
+          if File.basename(source_file) =~ Regexp.new(source_file_name_pattern)
+            if last_parsing_datetime.nil? || last_parsing_datetime < File.mtime(source_file)
               files << source_file
             end
           end
         end
       end
+
+      #source_files.each do |source_file| 
+      #  if File.directory?( source_file )
+      #    unless source_records_dir =~ /\/\*\*(\/|$)/
+      #      if source_file =~ /\/processed(\/|$)/
+      #        @logger.debug ("Do not select files with 'processed' in the pathname: #{source_file}")
+      #        next
+      #      end
+      #      if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
+      #        files.concat select_files_from_source_records_dir( source_records_dir: source_file, source_file_name_pattern: source_file_name_pattern,  last_parsing_datetime: last_parsing_datetime )
+      #      end
+      #    end
+      #  else
+      #    if Regexp.new(source_file_name_pattern).match(File.basename(source_file))
+      #      if last_parsing_datetime.nil?  || (last_parsing_datetime < File.mtime(source_file))
+      #        files << source_file
+      #      end
+      #    end
+      #  end
+      #end
+
       @logger.debug ("number of selected files to process: #{files.uniq.size}")
       files.uniq
     end

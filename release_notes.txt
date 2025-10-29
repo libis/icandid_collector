@@ -31,3 +31,24 @@ VERSION_TAG
 
 ## v3.1_20250402 ##
 => update options in rules while parsing
+
+## v3.1_20250502 ##
+=> download tiktok video
+
+## v3.1_20250515 ##
+=> download tiktok users and comments
+
+## v3.1_20250526 ##
+=> download tiktok bug
+
+## v3.1_20250826 ##
+=> ena_parser
+
+## v3.1_20250916 ##
+=> plemun retrieve text page by page
+
+## v3.1_20250930 ##
+=> Vlaams parlement: handle opendata_link_verslag en opendata_link_self when missing opendata_document
+
+## v3.1_20251027 ##
+=> download TMDB

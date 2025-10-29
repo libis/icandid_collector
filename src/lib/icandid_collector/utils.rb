@@ -14,7 +14,9 @@ module IcandidCollector
     end
 
     def tikaFullTextExtraction( data, options ) 
+      attempts = 0
       begin
+        attempts += 1
         if options.has_key?(:file)
           downloadfile = options[:file]
           if File.file?(downloadfile) 
@@ -26,7 +28,9 @@ module IcandidCollector
         end
 
         if icandid_config[:tika_url].nil?
-          unless icandid_config[:tika_server].nil?
+          if icandid_config[:tika_server].nil?
+            raise "tika_server missing in configuration"
+          else
             icandid_config[:tika_url] = "https://#{ icandid_config[:tika_server] }/tika"
           end
         end
@@ -42,13 +46,36 @@ module IcandidCollector
         end
       rescue StandardError => e
         @logger.error("#{ e.message  }")
+        if attempts < 5
+          @logger.error("Retry [ #{ attempts  } ]")
+          retry 
+        end
         @logger.error("#{ e.backtrace.inspect   }")
-        pp e.message
         raise e.message
       end
     end
 
-
+    def csv_file_to_hash(file, seprator=",", encoding="UTF-8")
+      begin
+          @raw = rdata = File.read("#{file}", :encoding => encoding).scrub
+  
+          #@logger.debug("csv_file_to_hash #{encoding} #{file}") 
+          orig_encoding = rdata.encoding
+          rdata.force_encoding("UTF-8")
+          unless rdata.valid_encoding?
+            raise (" file encoding has invalid UTF-8")
+          end
+  
+  #        rdata = rdata.gsub('\"', "'")
+          data = CSV.parse(rdata, headers: true, col_sep: seprator)
+          data.map(&:to_h)
+      rescue StandardError => msg
+          puts "Error csv_file_to_hash: unable to read CSV #{file}"
+          puts "msg: #{msg}"
+          {}
+      end
+    end
+    
     def languageDetection( data, options )
       begin
         #@logger.debug("Start detect language #{ options[:language_detection_url]} OR #{ options[:language_detection_service] }")
