@@ -35,21 +35,34 @@ def process_queries(icandid_config)
       @logger.info ("Download records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
       icandid_config.config[:query] = query    
 
+
       for year in query[:params][:start_year]..query[:params][:end_year] do    
+        daysinmonth = [0,31,28,31,30,31,30,31,31,30,31,30,31]
+        if year % 4 
+          daysinmonth[2] = 29
+        end
 
-        options = { 
-            download_url_prop: "discover_url",
-            primary_release_date_gte: year.to_s + "-01-01",
-            primary_release_date_lte: year.to_s + "-12-31"            
-        }
-      
-        icandid_config.prepare_query(query: query, options: options)
-        url = icandid_config.config[ options[:download_url_prop].to_sym ]
-        
-        unless url.nil?
+        for month in 1..12 do
+          for d_from in [1,9,17,25] do
+            d_to = d_from + 7
+            if d_to > daysinmonth[month]
+              d_to = daysinmonth[month]
+            end
 
-            @logger.info("download_url : #{url}")
-            process_query(icandid_config: icandid_config, query: query, options: options)
+            options = { 
+                download_url_prop: "discover_url",
+                primary_release_date_gte: "%04d-%02d-%02d" % [year,month,d_from],
+                primary_release_date_lte: "%04d-%02d-%02d" % [year,month,d_to]
+            }
+          
+            icandid_config.prepare_query(query: query, options: options)
+            url = icandid_config.config[ options[:download_url_prop].to_sym ]
+            
+            unless url.nil?
+                @logger.info("download_url : #{url}")
+                process_query(icandid_config: icandid_config, query: query, options: options)
+            end
+          end
         end
       end
       exit
