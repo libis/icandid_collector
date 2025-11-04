@@ -38,7 +38,7 @@ def process_queries(icandid_config)
 
       for year in query[:params][:start_year]..query[:params][:end_year] do    
         daysinmonth = [0,31,28,31,30,31,30,31,31,30,31,30,31]
-        if year % 4 
+        if year % 4 == 0
           daysinmonth[2] = 29
         end
 
@@ -87,6 +87,8 @@ def process_query(icandid_config: nil, query: nil, options: {})
 
     options[:prefixid] = "#{icandid_config.ingest_data[:prefixid]}_#{ icandid_config.ingest_data[:provider][:@id].downcase }_#{ icandid_config.ingest_data[:dataset][:@id].downcase }"
 
+    options[:page] = 1
+
     icandid_config.update_config_with_query_data( query: query, options: options )
 
     @logger.info ("Start Download query: #{ query[:query][:name] } ")
@@ -105,20 +107,19 @@ def process_query(icandid_config: nil, query: nil, options: {})
       icandid_input = IcandidCollector::Input.new( :icandid_config => icandid_config)
       data = icandid_input.collect_data_from_uri(url: url,  options: input_options )
 
-
       pagecount = data["total_pages"]
       currentpage = 1
 
+      pp "pagecount : #{pagecount}"
       while currentpage <= pagecount
         unless (data["results"].empty?)
             @logger.debug ("total record for this query : #{ data["total_results"]}")
             # Expand resultsdata to records with body
             data["results"].each{ |d|
                 options[:movie_id] = d["id"]
-                
+              
                 icandid_config.update_config_with_query_data( query: query, options: options )
                 record_url = icandid_config.config[:record_url]
-
                 icandid_input = IcandidCollector::Input.new( :icandid_config => icandid_config)
                 @logger.info("Details from this url : #{record_url}")
                 record_data = icandid_input.collect_data_from_uri(url: record_url,  options: input_options )
@@ -127,22 +128,29 @@ def process_query(icandid_config: nil, query: nil, options: {})
                     record_data = record_data.compact
                     filename = "#{d["id"]}"
                     @logger.info("Writing to #{filename}")
-                    file =  File.join( icandid_config.config[:source_records_dir], filename )
+                    file =  File.join( icandid_config.config[:source_records_dir], "#{filename}.json")
                     icandid_output = IcandidCollector::Output.new( data: {data: record_data}, icandid_config: icandid_config)
                     icandid_output.save_data_to_uri( uri: "file://#{file}" , options: {"content_type": "application/json"})         
                     sleep(1)
                     exit if TESTING
-                end
+                end      
+
             }   
         end
 
         currentpage = currentpage + 1
+
         options[:page] = currentpage
 
-        icandid_config.update_config_with_query_data( query: query, options: options )
-        
+        if currentpage <= pagecount
+          icandid_config.update_config_with_query_data( query: query, options: options )
+          url = icandid_config.config[ options[:download_url_prop].to_sym ]
+          @logger.info ("Start Download from url next page: #{ url } ")
+          data = icandid_input.collect_data_from_uri(url: url,  options: input_options )
+        else
+          url = nil
+        end
       end 
-      url = nil
     end
    
 end

@@ -26,7 +26,7 @@ RULE_SET_v0_1 = {
         }
     },
     rs_records: {
-        records: { "$." => [ lambda { |d,o| 
+        records: { "$.data" => [ lambda { |d,o| 
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v0_1[:rs_record], d, out, o)
 
