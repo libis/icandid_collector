@@ -258,7 +258,7 @@ RULE_SET_v1_0 = {
         associatedMedia: {  '$.eadheader.daoset.dao[?(@._daotype=="derived")]._href' =>  lambda { |d,o|
             {
                 :@type => "MediaObject",
-                :contentUrl => d
+                :embedUrl => d
             }     
         }}
            
