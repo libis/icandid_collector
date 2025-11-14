@@ -193,7 +193,39 @@ RULE_SET_v1_0 = {
         }},
         material:  [ '$.archdesc.descgrp..genreform..p', '$.archdesc.descgrp..phystech..p'  ],
         materialExtent: '$.archdesc.descgrp..extent..p',
+
+        additionalProperty: { '$.archdesc.descgrp..custodhist..p' =>  lambda { |d,o|
+            {
+                "@type": "PropertyValue",
+                "name": "Archival context",
+                "value": d
+            }
+        }},
+
         # acquiredFrom: '$.archdesc.descgrp..custodhist..p',        => Only 1520249.xml contains this tag 
+
+        # If your CreativeWork is the top-level entity you are describing (e.g., a painting listed on an exhibition's website), 
+        # you can't use the owns property because that property belongs to the owner (Person or Organization), not the object being owned.
+        # The solution is to use the itemOf property and reverse the relationship, although this is more common for products than creative works.
+        # A cleaner and more common approach when dealing with provenance or acquisition of a unique Creative Work is to use a combination of 
+        # related properties, or stick with the OwnershipInfo structure by describing the relationship to the owner rather than the owner itself.
+        # Since the acquiredFrom property must be used inside an OwnershipInfo object, and the CreativeWork is the entity you are marking up, 
+        # you can connect the two using the subjectOf property (inherited from Thing).
+        # subjectOf: {  '$.archdesc.descgrp..custodhist..p' =>  lambda { |d,o|
+        #     {
+        #         "@type": "OwnershipInfo",
+        #         #"ownedFrom": "2024-03-15",
+        #         "acquiredFrom": {
+        #             "@type": "Person",
+        #             "name": d
+        #         },
+        #         #"ownedBy": {
+        #         #    "@type": "Organization",
+        #         #    "name": "The City Museum of Art"
+        #         #}
+        #     }     
+        # }},
+
         keywords: '$.archdesc.controlaccess..controlaccess.extref.persname.$text',
         sameAs:   '$.eadheader.daoset.dao[?(@._daotype=="otherdaotype")]._href',
         description: [{'$.archdesc.descgrp..note..p' =>  lambda { |d,o| 
