@@ -254,7 +254,10 @@ module IcandidCollector
               icandid_config.config[:nbr_created_records] = icandid_config.config[:nbr_created_records] + 1
 
               one_record_output << data
-              filename = "#{one_record_output['@id']}.json"
+
+              ascii_id = one_record_output['@id'].encode(Encoding.find('ASCII'))
+ 
+              filename = "#{ascii_id}.json"
               destination = "file://#{ File.join(icandid_config.config[:records_dir], filename) }"
 
               one_record_output.to_uri( destination,  options)
