@@ -48,7 +48,7 @@ RULE_SET_v0_1 = {
             #pp d
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v0_1[:rs_id], d, out, o)
-            o[:id] = out[:id].first
+            o[:id] = out[:id]
 
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
             rdata.merge!(out[:basic_schema].to_h)

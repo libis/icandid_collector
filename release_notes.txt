@@ -52,3 +52,12 @@ VERSION_TAG
 
 ## v3.1_20251027 ##
 => download TMDB
+=> zweeds parlement
+
+## v3.1_20251119 ##
+=> upgrade ruby and data_collector (0.63.0)
+
+## v3.1_20251125 ##
+=> tests
+
+ 

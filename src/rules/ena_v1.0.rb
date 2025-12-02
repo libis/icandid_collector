@@ -33,7 +33,7 @@ RULE_SET_v1_0 = {
 
             out = DataCollector::Output.new
             rules_ng.run(@rule_set_name[:rs_id], d, out, o)
-            o[:id] = out[:id].first
+            o[:id] = out[:id]
 
             begin
                 raw_date = "20#{d["codenummer"][1..6]}"
@@ -66,34 +66,34 @@ RULE_SET_v1_0 = {
                 date_published = date_published.strftime('%Y-%m-%d') if date_published
             end
 
-            if o[:ingest_data][:dataset][:@id] == "ENA"
-                if d["codenummer"][0] == "1" 
-                    publisher = o[:publisher][:vtm]  
-                    o[:ingest_data][:dataset] = {
-                        "@id": "ena_vtm",
-                        "@type": "Dataset",
-                        "name":  "ENA_VTM"
-                    }
-                    o[:ingest_data][:genericRecordDesc] = "Entry from Elektronisch Nieuwsarchief - VTM"
-                end
-                if d["codenummer"][0] == "2"
-                    publisher = o[:publisher][:vrt]  
-                    o[:ingest_data][:dataset] =  {
-                        "@id": "ena_vrt",
-                        "@type": "Dataset",
-                        "name":  "ENA_VRT"
-                    }
-                    
-                    o[:ingest_data][:genericRecordDesc] = "Entry from Elektronisch Nieuwsarchief - VRT"
-                end
+
+            dataset_mapping = {
+                "1" => {
+                    publisher: o[:publisher][:vtm],
+                    dataset: { "@id": "ena_vtm", "@type": "Dataset", "name": "ENA_VTM" },
+                    desc: "Entry from Elektronisch Nieuwsarchief - VTM"
+                },
+                "2" => {
+                    publisher: o[:publisher][:vrt],
+                    dataset: { "@id": "ena_vrt", "@type": "Dataset", "name": "ENA_VRT" },
+                    desc: "Entry from Elektronisch Nieuwsarchief - VRT"
+                }
+            }
+
+            code = d["codenummer"][0]
+            if dataset_mapping.key?(code)
+                publisher = dataset_mapping[code][:publisher]
+                o[:ingest_data][:dataset] = dataset_mapping[code][:dataset]
+                o[:ingest_data][:genericRecordDesc] = dataset_mapping[code][:desc]
             end
+
+            o[:id] = "#{o[:ingest_data][:dataset][:@id].downcase}_#{ o[:id] }".gsub("ena_","")
+            
             o[:prefixid] = "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:dataset][:@id].downcase }_#{o[:id]}".gsub("_ena_","_ENA_")
 
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
             rdata.merge!(out[:basic_schema].to_h)
             out.clear
-
-            rdata["@id"] = o[:prefixid]
 
             rdata.merge!({
                 :headline    => Nokogiri::HTML( d["themabeschrijving"] ).text,
@@ -287,7 +287,7 @@ RULE_SET_v1_0 = {
                             :@type    => "VideoObject",
                             :@id      => "#{ o[:@id] }_ACTOR_VIDEO_#{ o[:index] }",
                             :duration => ISO8601::Duration.new( d['duur'].to_i ).to_s,
-                            # :inLanguage => o["actor_taal"], # momenteel zit dit niet goed in de data
+                            # :inLanguage => o[:actor_taal], # momenteel zit dit niet goed in de data
                             :description => [
                                 "Actoraanhetwoord: #{d["Actoraanhetwoord"]}",
                                 "actor_spreektijd: #{d["actor_spreektijd"]}",

@@ -48,10 +48,10 @@ RULE_SET_v1_0 = {
             #pp d
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v1_0[:rs_id], d, out, o)
-            o[:id] = out[:id].first
+            o[:id] = out[:id]
 
             rules_ng.run(RULE_SET_v1_0[:rs_type], d, out, o)
-            o[:type] = out[:type].first
+            o[:type] = out[:type]
 
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
             rdata.merge!(out[:basic_schema].to_h)
@@ -62,7 +62,7 @@ RULE_SET_v1_0 = {
             rdata.merge!(out.data)
 
             rules_ng.run(RULE_SET_v1_0[:rs_url], d, out, o)
-            rdata[:url] = out[:url].first
+            rdata[:url] = out[:url]
 
             if rdata[:inLanguage].nil?
                 langcode = rdata["@context"]["@language"]

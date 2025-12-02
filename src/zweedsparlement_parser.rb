@@ -3,7 +3,7 @@ $LOAD_PATH << '.' << './lib' << "#{File.dirname(__FILE__)}" << "#{File.dirname(_
 ROOT_PATH = File.join( File.dirname(__FILE__), '../')
 
 require 'icandid_collector'
-provider = 'VlaamsParlement'
+provider = 'ZweedsParlement'
 
 PROCESS_TYPE = "parser"
 
@@ -15,7 +15,7 @@ INGEST_DATA = JSON.parse(ingestJson, :symbolize_names => true)
 def parse_recent_queries( options: {})
     options = { 
         date: "*/**",
-        collection_type: "recent"
+        collection_type: "recent_records"
     }
     parse_queries(options: options)
 end
@@ -36,10 +36,32 @@ def parse_queries(options: {})
             rule_set = @icandid_config.config[:rule_set].constantize 
         end
 
-        options[:type] = "Legislation"
-        # options[:sort_files] = Proc.new {  |a, b| File.mtime(b) <=> File.mtime(a) } # reverse (newest first)
-        options[:sort_files] = Proc.new { |a, b| File.path(a) <=> File.path(b) } # 
+        input_options = {
+          number_of_retries: 3,
+          headers: {"Content-Type" => "application/json", "accept-encoding" => "UTF-8", "Accept" => "application/json"},
+          verify_ssl:  false
+        }
+        begin
+           doktyp   =  @icandid_input.collect_data_from_uri(url: "https://data.riksdagen.se/sv/koder/?typ=doktyp&utformat=json" , options: input_options )
+           organ    =  @icandid_input.collect_data_from_uri(url: "https://data.riksdagen.se/sv/koder/?typ=organ&utformat=json" , options: input_options )
+           roll     =  @icandid_input.collect_data_from_uri(url: "https://data.riksdagen.se/sv/koder/?typ=roll&utformat=json" , options: input_options )
+           riksmote =  @icandid_input.collect_data_from_uri(url: "https://data.riksdagen.se/sv/koder/?typ=riksmote&utformat=json" , options: input_options )
+        rescue DataCollector::InputError => e                        
+          @logger.error (e)
+          exit
+        end
         
+        
+        options[:type] = "Legislation"
+        options[:default_publisher] = {
+                :@type => "Organization",
+                :@id   => "iCANDID_ORGANIZATION_ZWEEDS_PARLEMENT",
+                :name  => "Sveriges riksdag"
+            }
+        options[:doktyp] = doktyp["typer"]["typ"]
+        options[:organ] = organ["organ"]["organ"]
+        options[:roll] = roll
+        options[:riksmote] = riksmote
         
 
         @icandid_config.queries_to_process.each do |query|
@@ -56,7 +78,11 @@ def parse_queries(options: {})
             @logger.info ("Start parsing source_records_dir: #{@icandid_config.config[:source_records_dir]} ")
             @logger.info ("Start parsing source_file_name_pattern: #{@icandid_config.config[:source_file_name_pattern]} ")
 
+            
             icandid_input.process_files( options: options  )
+
+
+
             @total_nr_parsed_files = @total_nr_parsed_files + icandid_input.total_nr_parsed_files
             @logger.info ("#{@total_nr_parsed_files} files parsed")
             @logger.info ("#{@icandid_config.config[:nbr_created_records]} records created")
@@ -145,9 +171,14 @@ ensure
     <hr>
   
 END_OF_MESSAGE
+
     begin
         @icandid_utils.mailErrorReport(subject, message, importance, @icandid_config)
         # @logger.info("#{icandid_config.ingest_data[:provider][:name]} Parsing is finished without errors")
+    rescue Net::SMTPFatalError => e        
+        pp "Error in SMTP request"
+        pp e
+        pp "COULD NOT SEND EMAIL"
     rescue StandardError => e
         raise e       
     end

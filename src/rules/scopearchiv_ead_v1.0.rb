@@ -45,7 +45,7 @@ RULE_SET_v1_0 = {
             out.clear
 
             rules_ng.run(RULE_SET_v1_0[:rs_id], d, out, o)
-            o[:id] = out[:id].first
+            o[:id] = out[:id]
 
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
             rdata.merge!(out[:basic_schema].to_h)
@@ -56,10 +56,12 @@ RULE_SET_v1_0 = {
             unless out.data[:associatedMedia].nil?
                 url = out.data[:associatedMedia][:embedUrl].gsub('representation','metadata')
 
-                # pp out.data[:identifier]
-
                 data = icandid_input.collect_data_from_uri(url:  url  ,  options: o )
-                out.data[:identifier] =  [ out.data[:identifier] ] unless  out.data[:identifier].is_a?(Array)
+                
+                pp "out.data.keys: #{out.data.keys}"
+                pp "out.data[:identifier]: #{out.data[:identifier]}"
+
+                out.data[:identifier] = [ out.data[:identifier] ] unless out.data[:identifier].is_a?(Array)
 
                 data["identifier"] = [ data["identifier"]  ] unless data["identifier"].is_a?(Array)
                 

@@ -452,7 +452,7 @@ RULE_SET_v0_1 = {
 
             out = DataCollector::Output.new
             rules_ng.run(@rule_set_name[:rs_id], d, out, o)
-            o[:id] = out[:id].first
+            o[:id] = out[:id]
 
 
             if o[:ingest_data]["metaLanguage"] == "und" || o[:ingest_data]["metaLanguage"].nil?

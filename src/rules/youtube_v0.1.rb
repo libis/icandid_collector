@@ -92,7 +92,7 @@ RULE_SET_v0_1 = {
             out = DataCollector::Output.new
             rules_ng.run(@rule_set_name[:rs_videoid], d, out, o)
 
-            o[:id] = out[:id].first
+            o[:id] = out[:id]
 
 
             rdata = {}

@@ -15,6 +15,7 @@ module IcandidCollector
 
     def tikaFullTextExtraction( data, options ) 
       attempts = 0
+      @logger.debug("tikaFullTextExtraction [downloadfile = #{options[:file]} ]")
       begin
         attempts += 1
         if options.has_key?(:file)
@@ -31,11 +32,27 @@ module IcandidCollector
           if icandid_config[:tika_server].nil?
             raise "tika_server missing in configuration"
           else
-            icandid_config[:tika_url] = "https://#{ icandid_config[:tika_server] }/tika"
+            url = icandid_config[:tika_server]
+            url = "https://#{url}" unless url.start_with?("http://", "https://")
+           
+            # Add /tika if missing
+            url = url.chomp("/") # remove trailing slash if any
+            url += "/tika" unless url.end_with?("/tika")
+            
+            icandid_config[:tika_url] = url
+
           end
         end
         unless icandid_config[:tika_url].nil?
-          tika_response = HTTP.put(icandid_config[:tika_url], headers: { accept: "text/plain" }, body: data)
+          headers = { accept: "text/plain"}
+          headers.merge!(options[:headers]) if options[:headers]
+          
+          tika_response = HTTP.timeout(read: 120, write: 60, connect: 180)
+                              # .use(:ssl, ssl_version: :TLSv1_2, verify: true)
+                              .headers(headers)
+                              .put(icandid_config[:tika_url], body: data)
+
+          # tika_response =  HTTP.put(icandid_config[:tika_url], headers: { accept: "text/plain" }, body: data)
           if tika_response.code == 200
             output = tika_response.body.to_s.encode!('UTF-8', :undef => :replace, :invalid => :replace, :replace => "")
             if options.has_key?(:file)
@@ -59,7 +76,7 @@ module IcandidCollector
       begin
           @raw = rdata = File.read("#{file}", :encoding => encoding).scrub
   
-          #@logger.debug("csv_file_to_hash #{encoding} #{file}") 
+          @logger.debug("csv_file_to_hash #{encoding} #{file}") 
           orig_encoding = rdata.encoding
           rdata.force_encoding("UTF-8")
           unless rdata.valid_encoding?
@@ -110,20 +127,21 @@ module IcandidCollector
 
 
     def mailErrorReport (subject,  report , importance, config)
-      now = DateTime.now
+      begin
+        now = DateTime.now
 
-      unless ENV['SMTP_SERVER'] 
-        pp "-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-"
-        pp " No smtp-server configured"
-        pp "-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-"
-        exit
-      end
+        unless ENV['SMTP_SERVER'] 
+          pp "-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-"
+          pp " No smtp-server configured"
+          pp "-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!-"
+          exit
+        end
 
-      @smtp_server = ENV['SMTP_SERVER'] 
-      @from_address = ENV['FROM_MAIL_ADDRESS'] 
-      @to_address = ENV['ADMIN_MAIL_ADDRESS'] 
+        @smtp_server = ENV['SMTP_SERVER'] 
+        @from_address = ENV['FROM_MAIL_ADDRESS'] 
+        @to_address = ENV['ADMIN_MAIL_ADDRESS'] 
 
-      message = <<END_OF_MESSAGE
+        message = <<END_OF_MESSAGE
 From: #{ @from_address }
 To: #{@to_address}
 MIME-Version: 1.0
@@ -138,11 +156,21 @@ Date: #{ now }
 
 END_OF_MESSAGE
 
-      Net::SMTP.start(@smtp_server, 25, tls_verify: false)  do |smtp|
-          smtp.send_message message,
-          @from_address , @to_address
+        Net::SMTP.start(@smtp_server, 25, tls_verify: false)  do |smtp|
+            smtp.send_message message,
+            @from_address , @to_address
+        end
+      
+      rescue Errno::ECONNREFUSED => e
+        @logger.error("SMTP connection failed: #{e.message}")
+      rescue SocketError => e
+        @logger.error("Hostname error: #{e.message}")
+      rescue Net::SMTPFatalError => e
+        @logger.error("SMTPFatalError: #{e.message}")
+      rescue StandardError => e
+        @logger.error("General error: #{e.message}")
+        raise e
       end
     end
   end
-
 end

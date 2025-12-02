@@ -1,5 +1,7 @@
 #encoding: UTF-8
 
+require 'active_support/inflector/transliterate'
+
 module IcandidCollector
 
   class Input
@@ -123,10 +125,14 @@ module IcandidCollector
         uri = URI(uri)
         url = uri.to_s
 
+
         http = HTTP
         ctx = nil
         http_query_options = {}
        
+
+
+
         if options.key?(:headers)
           # @logger.debug "Set http headers"
           http = http.headers(options[:headers])
@@ -203,6 +209,8 @@ module IcandidCollector
  
       rescue Exception => e
         @logger.error ("Error in download_file_from_uri: #{e.message}")
+        @logger.error ("url: #{url}")
+
 
         if @retries < @number_of_retries
           @retries += 1
@@ -211,6 +219,13 @@ module IcandidCollector
           download_file_from_uri( url: url, download_path: download_path , options: options )
         end
         @logger.error("Already tried #{@retries} times, I give up")
+
+                
+        importance = "Normal"
+        subject = "iCANDID Error download_file_from_uri"
+        message = "Error in download_file_from_uri: #{e.message} \n\n #{@icandid_config }"
+        @icandid_utils.mailErrorReport(subject, message, importance, @icandid_config)
+        
         raise DataCollector::InputError, "Unable to download file"
       end
     end
@@ -222,6 +237,19 @@ module IcandidCollector
         end
 
         files = get_files_to_parse()
+        files = files.sort # Lexicographical sort by full path
+
+        # options[:sort_files] = Proc.new {  |a, b| File.path(a) <=> File.path(b) } # Full path
+        # options[:sort_files] = Proc.new {  |a, b| File.mtime(a) <=> File.mtime(b) } # File.mtime (oldest first)
+        # options[:sort_files] = Proc.new {  |a, b| File.mtime(b) <=> File.mtime(a) } # reverse File.mtime (newest first)
+        # options[:sort_files] = Proc.new {  |a, b| File.basename(a).downcase <=> File.basename(b).downcase } #  basename
+        # options[:sort_files] = Proc.new {  |a, b| File.basename(b).downcase <=> File.basename(b).downcase } #  basename descending
+
+        unless options[:sort_files].nil?
+          if options[:sort_files]
+            files = files.sort(&options[:sort_files])
+          end
+        end
 
         if files.empty?
           @logger.warn ("No files to process in #{ icandid_config.config[:source_records_dir] }")        
@@ -255,8 +283,9 @@ module IcandidCollector
 
               one_record_output << data
 
-              ascii_id = one_record_output['@id'].encode(Encoding.find('ASCII'))
- 
+              #ascii_id = one_record_output['@id'].encode(Encoding.find('ASCII'))
+              ascii_id = ActiveSupport::Inflector.transliterate(one_record_output['@id'])
+
               filename = "#{ascii_id}.json"
               destination = "file://#{ File.join(icandid_config.config[:records_dir], filename) }"
 
@@ -307,6 +336,8 @@ module IcandidCollector
       
       source_files = Dir["#{source_records_dir}/*"]
 
+      #pp "source_filessource_filessource_filessource_filesv"
+      #pp source_files
       # Filter out 'processed' directories unless already in one
       unless icandid_config.config[:source_records_dir] =~ %r{/processed(/|$)}
         @logger.debug("Do not select files with 'processed' in the pathname: #{source_records_dir}")
@@ -326,6 +357,7 @@ module IcandidCollector
           end
         else
           if File.basename(source_file) =~ Regexp.new(source_file_name_pattern)
+
             if last_parsing_datetime.nil? || last_parsing_datetime < File.mtime(source_file)
               files << source_file
             end
@@ -372,13 +404,13 @@ module IcandidCollector
         @parsing_options[:start_parsing] = Time.now
         @parsing_options[:file] = file
         @parsing_options[:file_created_at] = File.mtime(file).to_s
-
+        @parsing_options[:_no_array_with_one_literal] = true 
+        @parsing_options[:_no_array_with_one_element] = true
  
-        #   pp data
-
+        # pp data
         # @logger.debug(" options:")
         # @logger.debug("parse_data rules_ng.run #{ rule_set }")
-        
+    
         rules_ng.run( rule_set[:rs_records], data, output, @parsing_options )
 
         unless output[:options].nil?

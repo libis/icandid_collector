@@ -11,6 +11,9 @@ RULE_SET_v1_0 = {
     rs_next_value: {
         page: { "$" => lambda { |d,o| 
             o["query"]["params"]["page"]+1
+            o[:query][:params][:page]+1
+            pp "????????????????????????? string OR symbol"
+            exit
         }}
     },
     rs_filename:{
@@ -45,7 +48,7 @@ RULE_SET_v1_0 = {
             rdata = {}
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v1_0[:rs_id], d, out, o)
-            o[:id] = out[:id].first
+            o[:id] = out[:id]
 
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
             rdata.merge!(out[:basic_schema].to_h)

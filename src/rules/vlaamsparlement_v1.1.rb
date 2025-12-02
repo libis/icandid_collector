@@ -6,7 +6,9 @@ RULE_SET_v1_1 = {
     version: "1.1",
     rs_next_value: {
         page: { "$" => lambda { |d,o| 
-            o["page"]+1
+            # pp "????????????????????????? string OR symbol"
+            # pp o[:page]
+            o[:page]+1
         }},
         total: "$.count" ,
         lastindex: "$.lastindex"
@@ -92,22 +94,28 @@ RULE_SET_v1_1 = {
                 #pp rdata
                 #pp "---------------------------------------------------------------------------------"
             end
-                                   
+            
+
+
+            o[:_no_array_with_one_literal] = true
+            o[:_no_array_with_one_element] = true 
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v1_1[:rs_id], d, out, o)
-            o[:id] = "#{o[:ingest_data][:dataset][:@id].downcase}_#{ out[:id].first }-00000"
-            o[:prefixid] = "#{o[:ingest_data][:dataset][:@id].downcase}_#{ out[:id].first }"
-            o[:record_id] = out[:id].first 
+            
+
+            o[:id] = "#{o[:ingest_data][:dataset][:@id].downcase}_#{ out[:id] }-00000"
+            o[:prefixid] = "#{o[:ingest_data][:dataset][:@id].downcase}_#{ out[:id] }"
+            o[:record_id] = out[:id] 
             o[:source_id] = d["id"]
             o[:index] = 0
             
-            
-
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
             rdata.merge!(out[:basic_schema].to_h)
             out.clear
 
             document_out = DataCollector::Output.new
+            o[:_no_array_with_one_literal] = false
+            o[:_no_array_with_one_element] = false 
             rules_ng.run(RULE_SET_v1_1[:rs_document], reorgenizeddata, document_out, o)
             
             unless document_out[:document].nil?
@@ -123,9 +131,11 @@ RULE_SET_v1_1 = {
             end
             o[:documenttype] = document_out[:documenttype]&.first
 
+
             opendata_out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v1_1[:rs_opendata], reorgenizeddata["opendata"], opendata_out, o)
-           
+
+
             if ( ! opendata_out[:bestand_ordered].nil? && opendata_out[:bestand_ordered].is_a?(Array) && opendata_out[:bestand_ordered].size > 2 )
                     @logger.warn "bestand_ordered.is_a?(Array) #{opendata_out[:bestand_ordered].is_a?(Array)}"
                     @logger.warn "bestand_ordered.size #{opendata_out[:bestand_ordered].size }"
@@ -137,7 +147,6 @@ RULE_SET_v1_1 = {
                     # pp reorgenizeddata["document"]
             end
 
-
             opendata_link_verslag = opendata_out[:link_verslag]&.first 
             opendata_link_verslag = nil if opendata_link_verslag&.include?("Error") 
 
@@ -145,10 +154,10 @@ RULE_SET_v1_1 = {
             opendata_link_self = nil if opendata_link_self&.include?("Error") 
 
             rdata[:sameAs] = d["url"]
-
             rules_ng.run(RULE_SET_v1_1[:rs_record_data], reorgenizeddata, out, o)
 
             rules_ng.run(RULE_SET_v1_1[:rs_contacttype], reorgenizeddata["opendata"], out, o)
+
             rdata.merge!(out.data)
             out.clear
             rdata.compact
@@ -191,7 +200,6 @@ RULE_SET_v1_1 = {
             # https://www.vlaamsparlement.be/nl/parlementaire-documenten/verzoekschriften/1829642
             # https://www.vlaamsparlement.be/parlementaire-documenten/gedachtewisselingen-hoorzittingen/1829661
             #
-
             unless document.nil?
                 if document.match(/^https:\/\/docs.vlaamsparlement.be(\/files)?\/pfile\?id=/)
                     document_to_check = document
@@ -203,6 +211,7 @@ RULE_SET_v1_1 = {
 
                 opendata_id = opendata_out[:id]&.first
                 opendata_document = opendata_out[:document]&.first
+
                 unless opendata_document.nil?
                     unless opendata_link_verslag.nil? || opendata_link_self.nil?
                         @logger.warn ("opendata_out has also link_verslag and link_self. Get dat from data[\"verslag-tekst\"] ? ")
@@ -271,7 +280,7 @@ RULE_SET_v1_1 = {
             unless document_to_check.nil?
                 begin
                     pdf_id = document_to_check.split('=').last
-                    file_to_check = File.join( File.dirname(o["file"]), "#{pdf_id}.pdf")
+                    file_to_check = File.join( File.dirname(o[:file]), "#{pdf_id}.pdf")
                     pdf_data = File.open(file_to_check)
                 rescue Errno::ENOENT
                     # pp "#{file_to_check} Not found! record id : #{ o[:record_id]  }"
@@ -280,21 +289,38 @@ RULE_SET_v1_1 = {
                         number_of_retries: 5,
                         headers: {"Content-Type" => "application/pdf", "accept-encoding" => "UTF-8", "Accept" => "application/pdf"}
                     }
-                    file = @icandid_input.download_file_from_uri(url: document_to_check,  download_path: file_to_check, options: input_options )
-                    if file[:content_type] != "application/pdf"
-                        @logger.warn ("Downloaded file from #{ document_to_check } is of type [ #{ file[:content_type] } ]")
-                        @logger.warn ("File is saved as #{file_to_check}")
-                        @logger.warn ("Full text extraction for this document format available ????")
+                    begin
+                        file = @icandid_input.download_file_from_uri(url: document_to_check,  download_path: file_to_check, options: input_options )
+                        if file[:content_type] != "application/pdf"
+                            @logger.warn ("Downloaded file from #{ document_to_check } is of type [ #{ file[:content_type] } ]")
+                            @logger.warn ("File is saved as #{file_to_check}")
+                            @logger.warn ("Full text extraction for this document format available ????")
+                        end
+                        pdf_data = File.open( file_to_check )
+                    rescue  StandardError => e
+                        @logger.error("#{ e.message  }")
+                        @logger.error("eerror error error")
+                        @logger.error(e)
+                        @logger.error("eerror error error")
+
+                        return nil
                     end
-                    pdf_data = File.open( file_to_check )
                 end
+            
                 unless pdf_data.nil?
                     dir = File.dirname(o[:file])
                     pdf_id = File.basename(file_to_check, ".pdf")
-                    rdata[:text] = @icandid_utils.tikaFullTextExtraction( pdf_data, {file:  File.join( dir, "#{pdf_id}.txt") } )
+                    options = {
+                        file:  File.join( dir, "#{pdf_id}.txt"),
+                        headers: {
+                            "X-Tika-OCR": false
+                        }
+                    } 
+                    rdata[:text] = @icandid_utils.tikaFullTextExtraction( pdf_data, options )
                 end
+
             end
-    
+
             if rdata[:text].nil?
                 unless opendata_link_verslag.nil? || opendata_link_self.nil?
                     
@@ -309,6 +335,7 @@ RULE_SET_v1_1 = {
                                 number_of_retries: 3,
                                 headers: {"Content-Type" => "application/json", "accept-encoding" => "UTF-8", "Accept" => "application/json"}
                             }
+
                             data =  @icandid_input.collect_data_from_uri(url: opendata_link_verslag , options: input_options )
                             rdata[:text] = data["verslag-tekst"]
                         end
@@ -363,6 +390,7 @@ RULE_SET_v1_1 = {
                     o[:source_id].match(/http:\/\/be.vlp.feed\/(\d*)$/)
                 )
                 )
+                    @logger.warn "Record #{o[:source_id]} contains no text or associatedMedia and therefore will not be processed."
                     return nil
                 end
 
@@ -390,6 +418,7 @@ RULE_SET_v1_1 = {
                 return nil
                 #raise "Geen rdata[:text] of rdata[:associatedMedia][:text] in : #{ o[:record_id]} / #{o[:source_id]} file #{o[:file]}"
             end
+
             rdata
             
         } }
@@ -464,7 +493,7 @@ RULE_SET_v1_1 = {
         datePublished:   '$.publicatiedatum',
         legislationType: ['$.aggregaat','$.aggregaattype'],
         legislationJurisdiction: '$.bevoegdheid',
-        url:             '$.displayurl',
+        # url:             '$.displayurl',
         description:     '$.onderwerp',
         creativeWorkStatus: '$.status',
         #description:     {'$' => lambda { |d,o| 
@@ -609,6 +638,7 @@ RULE_SET_v1_1 = {
             {
                 "$.opendata.journaallijn..link[?(@.rel == 'self')].href" => lambda { |d,o|
                     journaallijn = d
+                    
                     if journaallijn.match(/^https:\/\/ws.vlpar.be\/e\/opendata\/jln\//)
                         if o[:document].match(/^https:\/\/www.vlaamsparlement.be\/.*\/verslag/)
                             input_options = {
@@ -671,7 +701,7 @@ RULE_SET_v1_1 = {
                 out[:contact]
             }}
         ],
-        author: { "$.contacttype[?(@.beschrijving == 'Verslaggever')]" =>  lambda { |d,o|
+        creator: { "$.contacttype[?(@.beschrijving == 'Verslaggever')]" =>  lambda { |d,o|
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v1_1[:rs_contact],  d["contact"], out, o)
             out[:contact]

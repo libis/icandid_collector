@@ -68,7 +68,7 @@ RULE_SET_v2_0 = {
 
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_0[:rs_id], d, out, o)
-            o[:id] = out[:id].first
+            o[:id] = out[:id]
 
             
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)

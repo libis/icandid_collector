@@ -6,24 +6,38 @@ def get_uuid (uuid_url)
     begin
         http = HTTP
         uri = URI.decode_www_form_component("#{uuid_url.to_s}")
-
+        
         http_response = http.follow.get(uri.to_s, {})
 
-        data = JSON.parse( http_response.body.to_s )
-
+        uuid_data = JSON.parse( http_response.body.to_s )
+        
         case http_response.code
         when 200..299
-            uuid = data
-            url = "https://icandid.libis.be/_/" + uuid
+            if uuid_data.has_key?("uuid")
+                uuid = uuid_data["uuid"]
+            elsif uuid_data.has_key?("string")
+                uuid = uuid_data["string"]
+            else 
+                rasise "Error [#{http_response.status}] while creating UUID with #{uuid_url}"
+            end
         when 400
-            uuid = data["uuid"]
-            url = "https://icandid.libis.be/_/" + uuid
+            if uuid_data.has_key?("created") &&  uuid_data.has_key?("to_uuid") &&  uuid_data.has_key?("uuid")
+                uuid = uuid_data["to_uuid"]
+            elsif uuid_data.has_key?("created") &&  uuid_data.has_key?("from_uuid") &&  uuid_data.has_key?("uuid")
+                uuid = uuid_data["uuid"]
+            else
+                pp "uuid_data:::::::::"
+                pp uuid_data
+                raise "Error while creating UUID in basic_schema.rb rules"
+            end
         end
+        # URI.join(o[:ingest_data][:url_prefix]  "_/", uuid).to_s, 
+        url = "https://icandid.libis.be/_/" + uuid      
         [ url, uuid ]
     rescue StandardError => e 
         pp "rescue rescue rescuerescue"
         pp e
-
+        raise e
     end
 end
 
@@ -71,7 +85,13 @@ RULE_SET_BASIC_ICANDID = {
                 o[:additionalType] << "CreativeWork"
             end
 
-            id = "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_#{o[:id]}"
+            
+            #id = o[:id].to_s.empty? ? "#{o[:ingest_data][:prefixid]}_#{o[:ingest_data][:provider][:@id].downcase}_#{o[:id]}" : o[:id]
+            if o[:ingest_data][:provider][:@id] == "ENA"
+                id = "#{o[:ingest_data][:prefixid]}_#{o[:ingest_data][:provider][:@id]}_#{o[:id]}"
+            else
+                id = "#{o[:ingest_data][:prefixid]}_#{o[:ingest_data][:provider][:@id].downcase}_#{o[:id]}"
+            end
             uuid = nil
             url = nil
 

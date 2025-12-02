@@ -5,5 +5,6 @@ gem 'data_collector'
 gem 'iso639'
 gem 'countries'
 gem 'mustache'
+gem "hashdiff"
 #gem 'exiftool_vendored'
 

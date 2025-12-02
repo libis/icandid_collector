@@ -4,7 +4,6 @@ ROOT_PATH = File.join( File.dirname(__FILE__), '../')
 
 require 'icandid_collector'
 provider = 'ENA'
-
 PROCESS_TYPE = "parser"
 
 ingestJson =  File.read(File.join(ROOT_PATH, "./config/#{provider}/ingest.cfg"))
@@ -61,7 +60,7 @@ def parse_queries(options: {})
             @logger.info ("Start parsing period: #{period} ")
 
             # Load CSV data
-            base_dir = @icandid_config.config[:source_records_base_dir]
+            base_dir = @icandid_config.config[:source_records_dir]
             actoren_csv = @icandid_utils.csv_file_to_hash(File.join(base_dir, "#{period}_actoren.csv"))
             thema_csv   = @icandid_utils.csv_file_to_hash(File.join(base_dir, "#{period}_thema.csv"))
 
@@ -71,19 +70,19 @@ def parse_queries(options: {})
               thema:   thema_csv.map(&:to_h)
             }
 
-            # Write thema in chunks of 1000
-            temp_dir = File.join( base_dir, "temp")
+            chunk_size = @icandid_config.config[:chunk_size] || 250
+            # Write thema in chunks of #{chunk_size}
+            temp_dir = File.join( base_dir, "temp_#{SecureRandom.hex(8)}")
             
             # Ensure output directory exists
             FileUtils.mkdir_p(temp_dir)
 
-
-            json_output[:thema].each_slice(1000).with_index do |chunk, counter|
+            json_output[:thema].each_slice(chunk_size).with_index do |chunk, counter|
               output_path = File.join(temp_dir, "#{period}_#{counter}.json")
               File.open(output_path, "w") do |f|
                 f.write({ actoren: json_output[:actoren], thema: chunk }.to_json)
               end
-              @logger.info("Wrote chunk ##{counter} with 1000 records to #{output_path}")
+              @logger.info("Wrote chunk ##{counter} with #{chunk_size} records to #{output_path}")
             end
 
             #thema_csv.each.with_index() do |record, indexexi| 
@@ -98,16 +97,20 @@ def parse_queries(options: {})
             icandid_input.process_files( options: options  )
             @icandid_config.config[:source_records_dir] = base_dir
 
-            
-
             @logger.info ("Start parsing next NEXT NEXT ")
 
+            # Clean up temp directory
+            if Dir.exist?(temp_dir)
+              pp "Removing temp directory: #{temp_dir}"
+              FileUtils.rm_rf(temp_dir)
+            end
         end
     end
 end
 
 
 begin
+
 
   @logger = Logger.new(STDOUT)
   @logger.level = Logger::DEBUG
@@ -126,6 +129,8 @@ begin
   @icandid_utils  = IcandidCollector::Utils.new( :icandid_config => @icandid_config.config )
   
   @logger.info ("Start parsing using config: #{ File.join( config[:config_path] , "config.yml") }")
+  @logger.info ("READ TV_codebook:  #{ @icandid_config.config[:source_records_base_dir] }/#{@icandid_config.config[:themavariabelen]}")
+
 
   @TV_codebook =  @icandid_utils.csv_file_to_hash("#{ @icandid_config.config[:source_records_base_dir] }/#{@icandid_config.config[:themavariabelen]}", ";")
   toplevel = ''
@@ -156,7 +161,8 @@ begin
 
   @TV_codebook =  @TV_codebook.reject { |line| line['code'].to_i == 0 }
 
-  @logger.info ("READ #{@icandid_config.config[:source_records_base_dir]}/#{@icandid_config.config[:IPTCMediaTopic]}")
+  @logger.info ("READ IPTCMediaTopic:  #{ @icandid_config.config[:source_records_base_dir] }/#{@icandid_config.config[:themavariabelen]}")
+
   @IPTC_codebook =  @icandid_utils.csv_file_to_hash("#{@icandid_config.config[:source_records_base_dir]}/#{@icandid_config.config[:IPTCMediaTopic]}", ";")
 
   start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")

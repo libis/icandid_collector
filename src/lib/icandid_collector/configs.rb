@@ -10,7 +10,7 @@ module IcandidCollector
     attr_accessor :init_config, :config, :query_config, :queries_to_process, :retries, :ingest_data
 
     def initialize( config: {}, root_path: ROOT_PATH, ingest_data: {} )
-      
+    
       @logger = Logger.new(STDOUT)
       @retries = 0
       @command_line_options = {}
