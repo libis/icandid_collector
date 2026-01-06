@@ -359,7 +359,7 @@ ensure
 END_OF_MESSAGE
 
     begin
-        @icandid_utils.mailErrorReport(subject, message, importance, @icandid_config)
+        icandid_utils.mailErrorReport(subject, message, importance, icandid_config)
         # @logger.info("#{icandid_config.ingest_data[:provider][:name]} Parsing is finished without errors")
     rescue Net::SMTPFatalError => e        
         pp "Error in SMTP request"
