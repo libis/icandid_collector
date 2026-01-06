@@ -79,6 +79,8 @@ def get_comment_data_from_uri( d,o )
 
     url_query_string = URI.encode_www_form(url_params)
 
+    @logger.warn("!! !! !! !! !! Dit syteem werkt niet meer [22/12/2025] #{item_id}")
+
     if comment_id.nil?
         comments_url = "https://www.tiktok.com/api/comment/list/?#{url_query_string}"
     else
@@ -87,6 +89,7 @@ def get_comment_data_from_uri( d,o )
         comments_url = "https://www.tiktok.com/api/comment/list/reply/?#{url_query_string}"
     end
 
+    pp "comments_url #{comments_url}"
 
     http = HTTP
     http_response = http.follow.get(comments_url)
@@ -267,7 +270,7 @@ RULE_SET_v0_1 = {
             end
             
             #pp "TEST USERDATA 2"
-            unless o[:use_screen_scraping] # don't use screenscrape for users! It uses too much requests (API has a limit of 1000 requests per day)
+            unless o[:use_screen_scraping] # don't use API for users! It uses too much requests (API has a limit of 1000 requests per day)
                 url = "https://open.tiktokapis.com/v2/research/user/info/?fields=display_name,bio_description,avatar_url,is_verified,follower_count,following_count,likes_count,video_count"
 
                 pp " Don't use the API to collect userdata. API has a limit of 1000 requests per day !!!"
@@ -454,9 +457,13 @@ RULE_SET_v0_1 = {
             rules_ng.run(@rule_set_name[:rs_id], d, out, o)
             o[:id] = out[:id]
 
-
-            if o[:ingest_data]["metaLanguage"] == "und" || o[:ingest_data]["metaLanguage"].nil?
-                o[:detectedLanguage] = @icandid_utils.languageDetection("#{d["voice_to_text"]} #{d["video_description"]}" , {language_detection_url:  o[:config][:language_detection_url]})
+             if o[:ingest_data]["metaLanguage"] == "und" || o[:ingest_data]["metaLanguage"].nil?
+                begin
+                    o[:detectedLanguage] = @icandid_utils.languageDetection("#{d["voice_to_text"]} #{d["video_description"]}" , {language_detection_url:  o[:config][:language_detection_url]})
+                rescue => exception
+                    @logger.error("Error in language detection: #{ exception } ")
+                    raise ("Error in language detection")
+                end
             end
 
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
