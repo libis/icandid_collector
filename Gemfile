@@ -7,5 +7,6 @@ gem 'countries'
 gem 'mustache'
 gem "hashdiff"
 gem 'ruby-duration'
+gem 'bigdecimal', '~> 3.1', '>= 3.1.8'
 #gem 'exiftool_vendored'
 
