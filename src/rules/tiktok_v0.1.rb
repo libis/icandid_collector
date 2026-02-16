@@ -701,7 +701,7 @@ RULE_SET_v0_1 = {
                 :@language => o[:comment_language]
             }
         }},
-        create_time: { "$.create_time" => lambda { |d,o|
+        datePublished: { "$.create_time" => lambda { |d,o|
             Time.at(d).strftime("%Y-%m-%d")
         }},
         interactionStatistic: { "$.digg_count" => lambda { |d,o|
