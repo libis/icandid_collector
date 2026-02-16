@@ -1,6 +1,7 @@
 #encoding: UTF-8
 require 'data_collector'
 require "iso639"
+require 'ruby-duration'
 require_relative 'basic_schema'
 require_relative 'language_helpers'
 
@@ -281,6 +282,10 @@ RULE_SET_v0_1 = {
                 :dateCreated => Time.parse(d["created_at"]).strftime("%Y-%m-%d"),
                 :dateModified => Time.parse(d["updated_at"]).strftime("%Y-%m-%d") 
             }
-        }}
+        }},
+        duration: { "$.runtime" =>  lambda { |d,o| 
+            #ISO8601::Duration.new( d.to_i ).to_s
+            Duration.new(:seconds => d.to_i*60 ).iso8601
+        } }
     } 
 }

@@ -1,5 +1,6 @@
 #encoding: UTF-8
 require 'data_collector'
+require 'ruby-duration'
 require "iso639"
 require_relative 'basic_schema'
 require_relative 'language_helpers'
@@ -99,6 +100,8 @@ RULE_SET_v0_1 = {
  "reviews", => review
  "metacriticreviews"
 ]
+
+
 =end
 # --------------------------------
 
@@ -333,6 +336,9 @@ RULE_SET_v0_1 = {
                     }
                 end
             end
-        }}
+        }},
+        duration: { "$.runtimeMins" =>  lambda { |d,o| 
+            Duration.new(:seconds => d.to_i*60 ).iso8601
+        } }
     } 
 }
