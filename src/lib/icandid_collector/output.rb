@@ -17,7 +17,18 @@ module IcandidCollector
         if uri.nil?
           raise "url is required to save_data_to_uri"
         end
-        out = DataCollector::Output.new( data: @data[:data])
+        data = {}
+        if @data[:data]
+          data[:data] = @data[:data]
+        end
+        if @data[:metadata]
+          data[:metadata] = @data[:metadata]
+        end
+        if data.nil?
+          data = @data
+        end
+        
+        out = DataCollector::Output.new( data )
         out.to_uri(uri, options)
       end
     end

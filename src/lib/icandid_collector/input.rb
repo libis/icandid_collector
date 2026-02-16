@@ -406,7 +406,7 @@ module IcandidCollector
         @parsing_options[:file_created_at] = File.mtime(file).to_s
         @parsing_options[:_no_array_with_one_literal] = true 
         @parsing_options[:_no_array_with_one_element] = true
- 
+        
         # pp data
         # @logger.debug(" options:")
         # @logger.debug("parse_data rules_ng.run #{ rule_set }")
@@ -418,7 +418,7 @@ module IcandidCollector
           @parsing_options[:start_parsing] = Time.now
         end
         # output.crush
-        # @logger.debug("parse_data output  #{ output}")
+        # @logger.debug("parse_data output  #{ output[:options] }")
         output
 
       rescue StandardError => e
