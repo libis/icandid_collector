@@ -60,4 +60,12 @@ VERSION_TAG
 ## v3.1_20251125 ##
 => tests
 
- 
+## v3.1_20251211 ##
+=> Reddit download
+=> Reddit parser
+
+## v3.1_20260119
+=> data_collector output (uri only ascii chars)
+
+## v3.1_20260216
+=> duration for IMDB TMDB

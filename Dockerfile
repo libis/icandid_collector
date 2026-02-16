@@ -1,4 +1,4 @@
-FROM ruby:3.1.4
+FROM ruby:3.4.1
 # A minimal Dockerfile based on Ruby (2.3, 2.4, 2.5 or 2.6) Dockerfile (regular, slim or alpine) with Node.js 10 LTS (Dubnium) installed.
 #FROM timbru31/ruby-node  
 
@@ -10,7 +10,7 @@ RUN cp /usr/share/zoneinfo/CET /etc/localtime
 # RUN apt-get update
 #RUN apt-get install sgrep
 
-RUN apt-get update -qq && apt-get install -y build-essential libpq-dev libaio1 unzip ffmpeg
+RUN apt-get update -qq && apt-get install -y build-essential libpq-dev libaio1 unzip ffmpeg ca-certificates
 
 RUN mkdir /opt/oracle
 ADD oracle/*.zip /opt/oracle/
@@ -31,11 +31,9 @@ RUN bundle install
 WORKDIR $APP_HOME
 COPY src ./src
 
-RUN ls -l /app/src/
-
-# COPY ./tom_vanmechelen/data_collector ./data_collector
+COPY ./tom_vanmechelen/data_collector ./data_collector
 # RUN cd ./data_collector; gem build data_collector.gemspec; gem install data_collector-0.53.0.gem
-
+RUN cd ./data_collector; gem build data_collector.gemspec; gem install data_collector-0.63.0.gem
 
 
 #RUN npm i -g @walmartlabs/json-to-simple-graphql-schema
