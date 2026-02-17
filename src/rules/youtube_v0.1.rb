@@ -281,7 +281,7 @@ RULE_SET_v0_1 = {
         comment: {'$' => lambda { |d, o|
             out = {
                 text: d["textOriginal"],
-                create_time: Time.parse(d["publishedAt"]).strftime("%Y-%m-%d"),
+                datePublished: Time.parse(d["publishedAt"]).strftime("%Y-%m-%d"),
                 author: {
                     :@id           => "ICANDID_youtube_PERSON_#{d["authorChannelId"]["value"]}",
                     :@type         => "Person",
