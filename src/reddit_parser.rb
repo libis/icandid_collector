@@ -61,9 +61,9 @@ begin
 
     @icandid_config = IcandidCollector::Configs.new( :config => config , :ingest_data => INGEST_DATA) 
     
-    @logger.info ("Start downloading using config: #{ File.join( config[:config_path] , "config.yml") }")
+    @logger.info ("Start parsing using config: #{ File.join( config[:config_path] , "config.yml") }")
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
-    @logger.info ("Download for queries in : #{File.join( @icandid_config.query_config.path , @icandid_config.query_config.name) }")
+    @logger.info ("Parsing for queries in : #{File.join( @icandid_config.query_config.path , @icandid_config.query_config.name) }")
     
     @icandid_config.queries_to_process.map! do |query|
            query
