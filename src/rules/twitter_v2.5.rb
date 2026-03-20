@@ -5,6 +5,16 @@ require_relative 'basic_schema'
 
 DEBUG = false
 
+
+
+def twitter_to_ruby_index(text, twitter_index)
+  utf16 = text.encode("UTF-16LE")
+  # Bij UTF‑16 is 1 code unit = 2 bytes
+  byte_slice = utf16.bytes[0...(twitter_index * 2)]
+  byte_slice.pack("C*").force_encoding("UTF-16LE").encode("UTF-8").size
+end
+
+
 RULE_SET_v2_5 = {
     version: "2.5",
     rs_next_value: {
@@ -112,7 +122,7 @@ RULE_SET_v2_5 = {
 
     rs_data_tweets: {
         data: { "@" => [ lambda { |d,o|  
-            
+
 # Tweet object (d)
 # =begin
 # created_at             => publication_date
@@ -174,6 +184,7 @@ RULE_SET_v2_5 = {
             end
             
             # Expand geo/location
+
             unless d["geo"].nil?
                 unless d["geo"]["place_id"].nil?
                     #location = o[:places].select{ |place| place[:@id] == "#{o[:prefixid]}_PLACE_#{d["geo"]["place_id"]}" }.first 
@@ -189,6 +200,7 @@ RULE_SET_v2_5 = {
                             location[:geo] = geoCoordinates
                         else
                             location[:geo] = [location[:geo]] if !location[:geo].is_a?(Array)
+                            location[:geo].reject!{ |l| l[:@type] == "GeoCoordinates"} 
                             location[:geo] << geoCoordinates
                         end
                         rdata[:contentLocation] = []
@@ -255,7 +267,7 @@ RULE_SET_v2_5 = {
                 end             
             end
             # out.clear
-                    
+
             # Expand conversation
             conversation = DataCollector::Output.new
             rules_ng.run(RULE_SET_v2_5[:rs_conversation], d, conversation, o)
@@ -301,14 +313,18 @@ RULE_SET_v2_5 = {
             rules_ng.run(RULE_SET_v2_5[:rs_urls], d, tweet_expands, o) 
             urls = tweet_expands[:urls]
 
+
             unless urls.nil?
                 urls = [urls] unless urls.is_a?(Array)
                 urls.sort_by! { |url| url.to_h["end"] }.reverse!
                 urls.each do |url| 
-                    rdata[:text].insert( url["end"], " [#{url["expanded_url"]}]")
+                    pp "test size : #{rdata[:text].size}"
+
+                    text_end = twitter_to_ruby_index(rdata[:text], url["end"])
+
+                    rdata[:text].insert( text_end, " [#{url["expanded_url"]}]")
                 end
             end
-
             rdata
         }]}
     },
@@ -417,6 +433,7 @@ RULE_SET_v2_5 = {
             unless d["url"].nil?
                 d["url"] = "https://#{d["url"]}" unless d["url"].start_with?("http://","https://")
             end
+
             d["name"] = d["username"] if d["name"].empty?
           
             u = {
@@ -430,7 +447,7 @@ RULE_SET_v2_5 = {
                 :address       => d["location"]
             }
 
-            unless d["url"] == "https://"
+            unless d["url"].match(/^https:\/\//)
                 u.except!(:url)
             end
 
