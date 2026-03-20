@@ -149,7 +149,7 @@ module IcandidCollector
           end
           content_length ? content_length.to_i : nil
 
-          if File.size(download_path) == content_length
+          if File.size(download_path).to_i == content_length.to_i || content_length.to_i == 0
             @logger.debug ("File already exists and is the correct size. Skipping download. #{ download_path } ")
             file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : get_file_type(http_response.headers)
             header_filename = filename_from(http_response.headers)
