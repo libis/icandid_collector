@@ -191,9 +191,17 @@ module IcandidCollector
           #    pp "save_to #{download_path}"
           #  end 
           #end
-          #pp "TEST TEST TEST ----------------------------"
 
-          File.open(download_path, 'wb') { |file| file.write(http_response.body) }
+          content_type   = http_response.headers['Content-Type'] || ""
+          m    = content_type.match(/charset=([^;]+)/i)
+          source  = (http_response.respond_to?(:charset) && http_response.charset) || (m && m[1]) || "Windows-1252"
+
+          raw = http_response.body.to_s
+
+          text = raw.encode("UTF-8", source, invalid: :replace, undef: :replace, replace: "")
+ 
+          
+          File.open(download_path, 'wb') { |file| file.write( text ) }
           raise '206 Partial Content' if http_response.code == 206
           return { download_path: download_path, content_type: file_type, header_filename: header_filename }
 
@@ -204,7 +212,11 @@ module IcandidCollector
         when 404
           raise DataCollector::InputError, 'Not found'
         else
-          raise DataCollector::InputError, "Unable to process received status code = #{http_response.code} error= #{http_response.body.to_s}"
+          raise DataCollector::InputError.new(
+            "Unable to process received status code = #{http_response.code} error= #{http_response.body.to_s}",
+            code: http_response&.code,
+            body: http_response&.body&.to_s
+          )
         end              
  
       rescue Exception => e
@@ -214,8 +226,9 @@ module IcandidCollector
 
         if @retries < @number_of_retries
           @retries += 1
-          @logger.error ("Wait 30 seconds and try Again ==> number_of_retries:#{ @retries }")
-          sleep 30
+          retry_after = 30 # number of seconds to wait before retry 
+          @logger.error ("Wait #{retry_after} seconds and try Again ==> number_of_retries: #{ @retries }")
+          sleep retry_after
           download_file_from_uri( url: url, download_path: download_path , options: options )
         end
         @logger.error("Already tried #{@retries} times, I give up")
@@ -224,9 +237,8 @@ module IcandidCollector
         importance = "Normal"
         subject = "iCANDID Error download_file_from_uri"
         message = "Error in download_file_from_uri: #{e.message} \n\n #{@icandid_config }"
-        @icandid_utils.mailErrorReport(subject, message, importance, @icandid_config)
-        
-        raise DataCollector::InputError, "Unable to download file"
+        # @icandid_utils.mailErrorReport(subject, message, importance, @icandid_config)
+        raise e
       end
     end
 
