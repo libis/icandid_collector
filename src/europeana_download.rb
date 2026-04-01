@@ -3,6 +3,7 @@ $LOAD_PATH << '.' << './lib' << "#{File.dirname(__FILE__)}" << "#{File.dirname(_
 require "unicode"
 require 'logger'
 require 'icandid'
+require 'cgi'
 
 include Icandid
 
@@ -10,8 +11,7 @@ include Icandid
 @logger.level = Logger::DEBUG
 
 ROOT_PATH = File.join( File.dirname(__FILE__), '../')
-
-# ConfJson = File.read( File.join(ROOT_PATH, './config/config.cfg') ) # ICANDID_CONF = JSON.parse(ConfJson, :symbolize_names => true) PROCESS_TYPE  = "download"  # used to determine (command line) config options
+PROCESS_TYPE  = "download"  # used to determine (command line) config options
 SOURCE_DIR   = '/source_records/Europeana/'
 RECORDS_DIR  = '/records/Europeana/'
 
@@ -30,7 +30,7 @@ begin
   }
 
   icandid_config = Icandid::Config.new( config: config )
- 
+
   collector = IcandidCollector::Input.new( icandid_config.config ) 
 
   @logger.info ("Start downloading using config: #{ icandid_config.config.path}/#{ icandid_config.config.file} ")
@@ -62,7 +62,7 @@ begin
     query[:name] = query[:query][:name]   
 
     options = { :collection_type => "recent_records", :query =>  query }
-
+    
     source_records_dir = icandid_config.get_source_records_dir( options: options)
 
     @logger.info ("downloads written to #{ source_records_dir }")
@@ -81,25 +81,30 @@ begin
     end
 
     while ( not data["items"].nil?)
-        data["items"].each{ |d|
-          unless (d["link"].nil?) 
-            objectdata = collector.get_data(d["link"])
-            d["object"] = objectdata["object"]
-	  end
-          filename = "Europeana#{d["id"].gsub! "/","-"}"
-          @logger.info("Writing to #{filename}")
-          output.to_jsonfile(d, filename, source_records_dir, true)
-          sleep(1)
-          exit if TESTING
-        }
-        url_options[:cursor] = data["nextCursor"]
-        url = icandid_config::create_url( url: icandid_config.config[:search_url], query: query, options: url_options)
-        data = collector.get_data(url, url_options)
-        collector.retries = 0
+      data["items"].each{ |d|
+	    unless (d["link"].nil?) 
+		    objectdata = collector.get_data(d["link"])
+		    d["object"] = objectdata["object"]
+	    end
+	    filename = "Europeana#{d["id"].gsub! "/","-"}"
+	    @logger.info("Writing to #{filename}")
+	    output.to_jsonfile(d, filename, source_records_dir, true)
+	    sleep(0.4)
+	    exit if TESTING
+      }
+	  	
+      if (data["nextCursor"].nil?) 
+        break
+      end
+      url_options[:cursor] = CGI::escape(data["nextCursor"])
+      sleep(0.4)
+      url = icandid_config::create_url( url: icandid_config.config[:search_url], query: query, options: url_options)
+      data = collector.get_data(url, url_options)
+      collector.retries = 0
     end
+	
     query[:recent_records][:last_run_update] = start_process
     icandid_config::update_query_config(query: query, index: index)
   end
 end
-
 
