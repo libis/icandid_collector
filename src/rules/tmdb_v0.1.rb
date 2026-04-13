@@ -137,7 +137,7 @@ RULE_SET_v0_1 = {
             rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d["title"], out, o)
             {
                 :@value => d["title"],
-                :@language => "#{d["iso_3166_1"].downcase}-#{out[:detect_language_script][0]}"
+                :@language => "#{d["iso_3166_1"].downcase}-#{out[:detect_language_script]}"
             }
 
         }},

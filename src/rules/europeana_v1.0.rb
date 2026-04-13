@@ -130,7 +130,7 @@ RULE_SET_v1_0 = {
                     r.append(
                         {
                             :@value =>  t,
-                            :@language => "#{l.downcase}-#{out[:detect_language_script][0]}"
+                            :@language => "#{l.downcase}-#{out[:detect_language_script]}"
                         }
                     )
                 }
@@ -148,7 +148,7 @@ RULE_SET_v1_0 = {
                     r.append(
                         {
                             :@value =>  t,
-                            :@language => "#{l.downcase}-#{out[:detect_language_script][0]}"
+                            :@language => "#{l.downcase}-#{out[:detect_language_script]}"
                         }
                     )
                 }
@@ -167,7 +167,7 @@ RULE_SET_v1_0 = {
                         r.append(
                             {
                                 :@value =>  t,
-                                :@language => "#{l.downcase}-#{out[:detect_language_script][0]}"
+                                :@language => "#{l.downcase}-#{out[:detect_language_script]}"
                             }
                         )
                     }
@@ -293,7 +293,7 @@ RULE_SET_v1_0 = {
                         r.append(
                             {
                                 :@value =>  e,
-                                :@language => "#{lang.downcase}-#{out[:detect_language_script][0]}"
+                                :@language => "#{lang.downcase}-#{out[:detect_language_script]}"
                             }
                         )
                     }

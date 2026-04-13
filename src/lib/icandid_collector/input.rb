@@ -317,7 +317,7 @@ module IcandidCollector
         @logger.error ("Error processing file ")
         @logger.error("#{ e.message  }")
         @logger.error("#{ e.backtrace.inspect   }")
-       # raise DataCollector::InputError, "Error while processing file"
+        raise DataCollector::InputError, "Error while processing file"
       end
     end
 

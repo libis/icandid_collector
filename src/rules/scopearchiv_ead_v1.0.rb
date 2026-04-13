@@ -166,7 +166,7 @@ RULE_SET_v1_0 = {
             rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
             {
                 :@value => d,
-                :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script][0]}"
+                :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script]}"
             }
         }}, 
         datePublished: '$.archdesc.descgrp..unitdate..p',
@@ -235,7 +235,7 @@ RULE_SET_v1_0 = {
                 rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
                 {
                     :@value => d,
-                    :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script][0]}"
+                    :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script]}"
                 }
             }},
             {'$.archdesc.descgrp..scopecontent..p' =>  lambda { |d,o| 
@@ -243,7 +243,7 @@ RULE_SET_v1_0 = {
                 rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
                 {
                     :@value => d,
-                    :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script][0]}"
+                    :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script]}"
                 }
             }}
         ],
@@ -253,7 +253,7 @@ RULE_SET_v1_0 = {
             rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
             {
                 :@value => d,
-                :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script][0]}"
+                :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script]}"
             }
         }},
 =end

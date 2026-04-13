@@ -138,7 +138,7 @@ RULE_SET_v0_1 = {
                     rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
                     {
                         :@value => d,
-                        :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script][0]}"
+                        :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script]}"
                     }
                 end
             }},
@@ -148,7 +148,7 @@ RULE_SET_v0_1 = {
                     rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
                     {
                         :@value => d,
-                        :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script][0]}"
+                        :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script]}"
                     }
                 end
             }},
@@ -167,16 +167,21 @@ RULE_SET_v0_1 = {
         }},
         description: [
             { '$.plot' =>  lambda { |d,o| 
-                {
-                    :@value => d,
-                    :@language => 'en-Latn'
-                }
+                unless d.empty?
+                    {
+                        :@value => d,
+                        :@language => 'en-Latn'
+                    }
+                end
             }},
             {'$.wikipedia.plotFull.plainText' =>  lambda { |d,o| 
-                {
-                    :@value => d,
-                    :@language => 'en-Latn'
-                }
+               
+                unless d.empty?
+                    {
+                        :@value => d,
+                        :@language => 'en-Latn'
+                    }
+                end
             }}
         ],
         actor:  {'$.actorList' =>  lambda { |d,o| 
