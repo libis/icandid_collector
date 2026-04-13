@@ -135,9 +135,10 @@ RULE_SET_v0_1 = {
 
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d["title"], out, o)
+            language_script = out[:detect_language_script].is_a?(Array) ? out[:detect_language_script].first : out[:detect_language_script]
             {
                 :@value => d["title"],
-                :@language => "#{d["iso_3166_1"].downcase}-#{out[:detect_language_script]}"
+                :@language => "#{d["iso_3166_1"].downcase}-#{language_script}"
             }
 
         }},

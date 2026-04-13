@@ -671,7 +671,8 @@ RULE_SET_v0_1 = {
             o[:downloadtime] = d["download_time"]
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d["comment_language"].downcase, out, o)
-            o[:comment_language] = "#{d["comment_language"].downcase}-#{out[:detect_language_script]}"
+            language_script = out[:detect_language_script].is_a?(Array) ? out[:detect_language_script].first : out[:detect_language_script]
+            o[:comment_language] = "#{d["comment_language"].downcase}-#{language_script}"
             out = DataCollector::Output.new
             rules_ng.run(@rule_set_name[:rs_comment], d, out, o)
             out["@type"] = "Comment"

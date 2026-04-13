@@ -233,17 +233,19 @@ RULE_SET_v1_0 = {
         description: [{'$.archdesc.descgrp..note..p' =>  lambda { |d,o| 
             out = DataCollector::Output.new
                 rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
+                language_script = out[:detect_language_script].is_a?(Array) ? out[:detect_language_script].first : out[:detect_language_script]
                 {
                     :@value => d,
-                    :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script]}"
+                    :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{language_script}"
                 }
             }},
             {'$.archdesc.descgrp..scopecontent..p' =>  lambda { |d,o| 
                 out = DataCollector::Output.new
                 rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
+                language_script = out[:detect_language_script].is_a?(Array) ? out[:detect_language_script].first : out[:detect_language_script]
                 {
                     :@value => d,
-                    :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script]}"
+                    :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{language_script}"
                 }
             }}
         ],
@@ -251,9 +253,10 @@ RULE_SET_v1_0 = {
         about: {'$.archdesc.descgrp..scopecontent..p' =>  lambda { |d,o| 
             out = DataCollector::Output.new
             rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d, out, o)
+            language_script = out[:detect_language_script].is_a?(Array) ? out[:detect_language_script].first : out[:detect_language_script]
             {
                 :@value => d,
-                :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{out[:detect_language_script]}"
+                :@language => "#{ o[:ingest_data][:metaLanguage].downcase }-#{language_script}"
             }
         }},
 =end
