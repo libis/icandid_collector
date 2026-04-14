@@ -335,7 +335,8 @@ module IcandidCollector
       # puts "get_parsing_datetime"      
       # puts  @command_line_options[:last_parsing_datetime]
       return Time.parse( @command_line_options[:last_parsing_datetime] ) unless  @command_line_options[:last_parsing_datetime].nil?
-      return Time.parse( query[:last_parsing_datetime] ) unless query[:last_parsing_datetime] .nil? ||query[:last_parsing_datetime].empty?
+      return query[:last_parsing_datetime] if query[:last_parsing_datetime].is_a?(Time)
+      return Time.parse( query[:last_parsing_datetime] ) unless query[:last_parsing_datetime].nil? || query[:last_parsing_datetime].empty?
       return Time.parse("2000/01/01")
     end
   
