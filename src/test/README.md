@@ -23,6 +23,12 @@ rake test TEST=test/parsers_test.rb TESTOPTS="--name=test_ena_parser -v"
 ```
 
 
+To run the **TMDB** parser test:
+
+```bash
+rake test TEST=test/parsers_test.rb TESTOPTS="--name=test_tmdb_parser -v"
+```
+
 
 ---
 
