@@ -32,8 +32,15 @@ WORKDIR $APP_HOME
 COPY src ./src
 
 COPY ./tom_vanmechelen/data_collector ./data_collector
-# RUN cd ./data_collector; gem build data_collector.gemspec; gem install data_collector-0.53.0.gem
+#RUN cd ./data_collector; gem build data_collector.gemspec; gem install data_collector-0.53.0.gem
+
+# Issues with HTTP::Cookie::MAX_COOKIES_TOTAL in http-cookie-1.1.4
+RUN gem uninstall -aIx http-cookie || true
+RUN gem install http-cookie -v 1.0.3
+
+
 RUN cd ./data_collector; gem build data_collector.gemspec; gem install data_collector-0.63.0.gem
+
 
 
 #RUN npm i -g @walmartlabs/json-to-simple-graphql-schema

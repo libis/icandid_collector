@@ -55,6 +55,16 @@ RULE_SET_v0_1 = {
             rdata.merge!(out[:basic_schema].to_h)
             out.clear
 
+            if d["translations"].keys != ["translations"]
+                pp "translations keys:"
+                pp  d["translations"].keys
+                exit
+            end
+            o[:translations] = d["translations"]["translations"]
+
+            # Remove original_title from alternative_titles 
+            d["alternative_titles"]["titles"].reject!{ |el| el["title"].casecmp(d["original_title"]) == 0}
+
             rules_ng.run(RULE_SET_v0_1[:rs_record_data], d, out, o)
             rdata.merge!(out.data)
 
@@ -130,15 +140,35 @@ RULE_SET_v0_1 = {
         }}
     },
     rs_record_data: {
-        name:   '$.original_title', 
+        name:   {'@' =>  lambda { |d,o|
+                {
+                    :@value => d['original_title'],
+                    :@language => detect_language(d["original_title"], d['original_language'], o)  
+                }
+        }},
         alternateName:  {'$.alternative_titles.titles' =>  lambda { |d,o| 
-
-            out = DataCollector::Output.new
-            rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], d["title"], out, o)
-            language_script = out[:detect_language_script].is_a?(Array) ? out[:detect_language_script].first : out[:detect_language_script]
+            # pp "----------------------------------------------------"
+            # pp "TITLE : #{ d["title"] }"
+            # pp "REGION_CODE :#{ d["iso_3166_1"].upcase }"
+            translation = o[:translations].select{ |el| el["data"]["title"].casecmp(d["title"]) == 0 && el["iso_3166_1"] == d["iso_3166_1"].upcase}
+            if translation.size > 1
+                pp "TRANSLATION : #{translation}"
+                exit
+            end
+            if translation.empty? 
+                translation = o[:translations].select{ |el| !el["data"]["title"].empty? && el["iso_3166_1"] == d["iso_3166_1"].upcase }
+                if translation.empty?
+                    pp "[alternateName] Get language_code fo Region"
+                    lang_code = language_code_for_region(d["iso_3166_1"].upcase , d["title"], o) 
+                else
+                    lang_code = translation.first&.[]("iso_639_1")
+                end
+            else
+                lang_code = translation.first&.[]("iso_639_1")
+            end
             {
                 :@value => d["title"],
-                :@language => "#{d["iso_3166_1"].downcase}-#{language_script}"
+                :@language => detect_language(d["title"], lang_code, o)
             }
 
         }},
