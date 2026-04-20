@@ -28,7 +28,14 @@ RULE_SET_v1_0 = {
     rs_records: {
         records: { "$." => [ lambda { |d,o| 
             out = DataCollector::Output.new
+
+            start = Time.now
             rules_ng.run(RULE_SET_v1_0[:rs_record], d, out, o)
+
+            finish = Time.now
+            diff = finish - start
+
+            @logger.info ( "Time to apply ruleset to record: #{diff} seconds")
 
             if out[:record].nil?
                 pp d.keys
@@ -53,12 +60,16 @@ RULE_SET_v1_0 = {
             rules_ng.run(RULE_SET_v1_0[:rs_type], d, out, o)
             o[:type] = out[:type]
 
+            out.clear
+            rules_ng.run(RULE_SET_v1_0[:rs_in_language], d, out, o)
+            o[:inLanguage] = out[:inLanguage]
+            rdata.merge!(out.data)
+
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
             rdata.merge!(out[:basic_schema].to_h)
             out.clear
 
             rules_ng.run(RULE_SET_v1_0[:rs_record_data], d, out, o)
-
             rdata.merge!(out.data)
 
             rules_ng.run(RULE_SET_v1_0[:rs_url], d, out, o)
@@ -93,16 +104,8 @@ RULE_SET_v1_0 = {
             d.split("?").first
         }}
     },
-    rs_record_data: {
-        :identifier => {'$.id'=>lambda { |d,o|
-            {
-                :@type  => "PropertyValue",
-                :name   => "Identification of the entity assigned by the provider",
-                :@id    => "original_provider_id",
-                :value  => d
-            }
-        }},
-        inLanguage: { "$.language" =>  lambda { |d,o| 
+    rs_in_language: {
+        inLanguage: { "$.language" =>  lambda { |d,o|
             unless Iso639[d].nil? || Iso639[d].alpha2.to_s.empty?
                 {
                     :@type         => "Language",
@@ -118,37 +121,39 @@ RULE_SET_v1_0 = {
                     :@id => "und"
                 }
             end
-        }},
-        name:{ "$.dcTitleLangAware" => lambda { |d,o|   # [["en",["ABC","DEF"]],[["de"],["GHI","JKL","MNO"]]]
-            out = DataCollector::Output.new
-            r = []
-            d.each { |e|
-                l = e[0]  # language code
-                n = e[1]  # actual data array
-                n.each{ |t|
-                    rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], t, out, o)
-                    r.append(
-                        {
-                            :@value =>  t,
-                            :@language => "#{l.downcase}-#{out[:detect_language_script]}"
-                        }
-                    )
-                }
+        }}
+    },    
+    rs_record_data: {
+        :identifier => {'$.id'=>lambda { |d,o|
+            {
+                :@type  => "PropertyValue",
+                :name   => "Identification of the entity assigned by the provider",
+                :@id    => "original_provider_id",
+                :value  => d
             }
-            r
+        }},
+        name: { "$" => lambda { |d,o| 
+            out = DataCollector::Output.new
+            rules_ng.run(RULE_SET_v1_0[:rs_title_data], d, out, o)
+            if out.has_key?(:titleLangAware)
+                rdata = out[:titleLangAware]
+            else
+                if out.has_key?(:title)
+                    rdata = out[:title]
+                end
+            end
+            rdata
         }},
         description:{"$.dcDescriptionLangAware" => lambda { |d,o|
-            out = DataCollector::Output.new
             r = []
             d.each { |e|
                 l = e[0]  # language code
                 n = e[1]  # actual data array
                 n.each{ |t|
-                    rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], t, out, o)
                     r.append(
                         {
                             :@value =>  t,
-                            :@language => "#{l.downcase}-#{out[:detect_language_script]}"
+                            :@language => detect_language(t, l, o)
                         }
                     )
                 }
@@ -157,17 +162,15 @@ RULE_SET_v1_0 = {
         }},
         keywords:  [ 
             { "$.edmConceptPrefLabelLangAware" => lambda { |d,o|
-                out = DataCollector::Output.new
                 r = []
                 d.each { |e|
                     l = e[0]  # language code
                     n = e[1]  # actual data array
                     n.each{ |t|
-                        rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], t, out, o)
                         r.append(
                             {
                                 :@value =>  t,
-                                :@language => "#{l.downcase}-#{out[:detect_language_script]}"
+                                :@language => detect_language(t, l, o)
                             }
                         )
                     }
@@ -215,13 +218,14 @@ RULE_SET_v1_0 = {
         ],
 
         associatedMedia:{"$" => lambda { |d,o|
-            unless (d["edmIsShownBy"] == nil && d["edmPreview"] == nil )
-                {
+            unless (d["edmIsShownBy"] == nil)
+                rdata = {
                     :@type => "MediaObject",
                     #:@id => "#{o[:ingest_data][:prefixid]}_#{  o[:ingest_data][:provider][:@id].downcase }_MEDIAOBJECT_#{0}",
-                    :url => d["edmIsShownBy"],
-                    :thumbnailUrl => d["edmPreview"]
+                    :url => d["edmIsShownBy"]
                 }
+                rdata[:thumbnailUrl] = d["edmPreview"] unless d["edmPreview"] == nil 
+                rdata
             end
         }},
         temporalCoverage:{"$.edmTimespanLabel" => lambda { |d,o|
@@ -280,20 +284,46 @@ RULE_SET_v1_0 = {
             d
         }}
     },
+    rs_title_data: {        
+        titleLangAware: { "$.dcTitleLangAware" => lambda { |d,o|   
+            # [["en",["ABC","DEF"]],[["de"],["GHI","JKL","MNO"]]] ;  
+            # [ "def": [ "Wellcome Exhibition: The History of Pharmacy." ]  ]
+                r = []
+                d.each { |e|
+                    l = e[0]  # language code
+                    n = e[1]  # actual data array
+                    n.each{ |t|
+                        r.append(
+                            {
+                                :@value =>  t,
+                                :@language => detect_language(t, l, o)
+                            }
+                        )
+                    }
+                }
+                r
+        }},
+        title: 
+            # If there is no property dcTitleLangAware select property title
+            { "$.title" => lambda { |d,o|   
+                {
+                    :@value =>  d,
+                    :@language => detect_language(d, "unknown", o)
+                }
+        }}
+        
+    },
     rs_language_to_jsonld: {
         data: { "@" => lambda { |d,o|
-            out = DataCollector::Output.new
             r = []
             d = [d] unless d.is_a?(Array)
             d.each { |obj|
-                obj.each { |k,v| 
-                    lang = k ==="def" ? "en" : k
+                obj.each { |l,v| 
                     v.each{ |e|
-                        rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], e, out, o)
                         r.append(
                             {
                                 :@value =>  e,
-                                :@language => "#{lang.downcase}-#{out[:detect_language_script]}"
+                                :@language => detect_language(e, l, o)
                             }
                         )
                     }

@@ -69,3 +69,15 @@ VERSION_TAG
 
 ## v3.1_20260216
 => duration for IMDB TMDB
+
+## v3.1_20260401
+=> Primo download and Parser
+
+## v3.1_20260413
+=> detect_language_script returns string
+
+## v3.1_20260414
+=> optimizing detect_language_script 
+
+## v3.1_20260420
+=> language (script ) detection for TMDB

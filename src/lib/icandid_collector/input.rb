@@ -275,7 +275,12 @@ module IcandidCollector
         icandid_config.config[:nbr_created_records] = 0
         files.each_with_index do |source_file, index|
           begin
+
+            start = Time.now
             parse_data( file: source_file, options:  @parsing_options, rule_set: icandid_config.config[:rule_set].constantize )
+            finish = Time.now
+            diff = finish - start
+            @logger.info ("Time tp parse file: #{ diff } seconds")
           rescue DataCollector::InputError => e
             @logger.error ("Error parsing file #{source_file} at index #{index}")
             raise e.message
@@ -369,7 +374,6 @@ module IcandidCollector
           end
         else
           if File.basename(source_file) =~ Regexp.new(source_file_name_pattern)
-
             if last_parsing_datetime.nil? || last_parsing_datetime < File.mtime(source_file)
               files << source_file
             end
