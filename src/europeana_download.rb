@@ -82,15 +82,18 @@ begin
 
     while ( not data["items"].nil?)
       data["items"].each{ |d|
-	    unless (d["link"].nil?) 
-		    objectdata = collector.get_data(d["link"])
-		    d["object"] = objectdata["object"]
-	    end
-	    filename = "Europeana#{d["id"].gsub! "/","-"}"
-	    @logger.info("Writing to #{filename}")
-	    output.to_jsonfile(d, filename, source_records_dir, true)
-	    sleep(0.4)
-	    exit if TESTING
+        filename = "Europeana#{d["id"].gsub! "/","-"}"
+        fullfilename = File.join(source_records_dir, filename) + ".json"  
+        if (not File.file?(fullfilename))
+          unless (d["link"].nil?) 
+            objectdata = collector.get_data(d["link"])
+            d["object"] = objectdata["object"]
+            @logger.info("Writing to #{filename}")
+            output.to_jsonfile(d, filename, source_records_dir, true)
+            sleep(0.4)
+            exit if TESTING
+          end
+        end
       }
 	  	
       if (data["nextCursor"].nil?) 
