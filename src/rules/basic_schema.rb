@@ -35,7 +35,8 @@ def get_uuid (uuid_url)
         url = "https://icandid.libis.be/_/" + uuid      
         [ url, uuid ]
     rescue StandardError => e 
-        pp "rescue rescue rescuerescue"
+
+        pp "rescue [get_uuid in basic_scema]"
         pp e
         raise e
     end

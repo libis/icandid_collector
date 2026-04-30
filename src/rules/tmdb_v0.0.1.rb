@@ -5,7 +5,7 @@ require 'ruby-duration'
 require_relative 'basic_schema'
 require_relative 'language_helpers'
 
-RULE_SET_v0_1 = {
+RULE_SET_v0_0_1 = {
     version: "0.1",
     rs_next_value: {
     },
@@ -27,9 +27,9 @@ RULE_SET_v0_1 = {
         }
     },
     rs_records: {
-        records: { "$.data" => [ lambda { |d,o| 
+        records: { "$" => [ lambda { |d,o| 
             out = DataCollector::Output.new
-            rules_ng.run(RULE_SET_v0_1[:rs_record], d, out, o)
+            rules_ng.run(RULE_SET_v0_0_1[:rs_record], d, out, o)
 
             if out[:record].nil?
                 pp d.keys
@@ -48,7 +48,7 @@ RULE_SET_v0_1 = {
 
             #pp d
             out = DataCollector::Output.new
-            rules_ng.run(RULE_SET_v0_1[:rs_id], d, out, o)
+            rules_ng.run(RULE_SET_v0_0_1[:rs_id], d, out, o)
             o[:id] = out[:id]
 
             rules_ng.run(RULE_SET_BASIC_ICANDID[:rs_basic_schema], d, out, o)
@@ -70,7 +70,7 @@ RULE_SET_v0_1 = {
             # necessary for comparing between alternative titles
             o[:alternative_titles] = d["alternative_titles"]["titles"]
 
-            rules_ng.run(RULE_SET_v0_1[:rs_record_data], d, out, o)
+            rules_ng.run(RULE_SET_v0_0_1[:rs_record_data], d, out, o)
             rdata.merge!(out.data)
 
             if rdata[:contributor].is_a?(Array)

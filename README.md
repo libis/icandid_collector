@@ -20,6 +20,9 @@ Use API keys to access APIs
 https://cloud.google.com/docs/authentication/api-keys
 
 
+Configs are update with Mustache 
+=> Triple braces {{{variable}}} preserve raw text ( articles&facet[] will not be escaped to articles&amp;facet[]  )
+
 
 
 

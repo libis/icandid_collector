@@ -1,6 +1,7 @@
 #encoding: UTF-8
 require 'data_collector'
 require "iso639"
+require 'countries'
 
 # Info about ISO 15924, Codes for the representation of names of scripts
 # https://stackoverflow.com/questions/4681055/how-can-i-detect-certain-unicode-characters-in-a-string-in-ruby/4681577
@@ -32,153 +33,87 @@ DEFAULT_REGIONS = {
  "yi" => "001", "yo" => "NG", "zu" => "ZA"
 }
 
-#DEFAULT_LANGUAGE =
-#  DEFAULT_REGIONS.each_with_object(Hash.new { |h, k| h[k] = [] }) do |(lang, region), h|
-#    h[region] << lang
-#  end
-
-
-DEFAULT_LANGUAGE = {
-  "001" => ["yi"],
-  "AF"  => ["ps"],
-  "AL"  => ["sq"],
-  "AM"  => ["hy"],
-  "AZ"  => ["az"],
-  "BA"  => ["bs"],
-  "BD"  => ["bn"],
-  "BG"  => ["bg"],
-  "BR"  => ["pt"],
-  "BY"  => ["be"],
-  "CN"  => ["zh"],
-  "CZ"  => ["cs"],
-  "DE"  => ["de"],
-  "DK"  => ["da"],
-  "EE"  => ["et"],
-  "ES"  => ["es", "ca", "eu", "gl"],
-  "ET"  => ["am", "ti"],
-  "FI"  => ["fi"],
-  "FR"  => ["fr"],
-  "GB"  => ["cy"],
-  "GE"  => ["ka"],
-  "GR"  => ["el"],
-  "HR"  => ["hr"],
-  "HU"  => ["hu"],
-  "ID"  => ["id"],
-  "IE"  => ["ga"],
-  "IL"  => ["he"],
-  "IN"  => ["as", "gu", "hi", "kn", "ml", "mr", "or", "pa", "ta", "te"],  
-  "IR"  => ["fa"],
-  "IS"  => ["is"],
-  "IT"  => ["it"],
-  "JP"  => ["ja", "en"],
-  "KG"  => ["ky"],
-  "KH"  => ["km"],
-  "KR"  => ["ko"],
-  "KZ"  => ["kk"],
-  "LA"  => ["lo"],
-  "LK"  => ["si"],
-  "LT"  => ["lt"],
-  "LU"  => ["lb"],
-  "LV"  => ["lv"],
-  "MG"  => ["mg"],
-  "MK"  => ["mk"],
-  "MM"  => ["my"],
-  "MN"  => ["mn"],
-  "MT"  => ["mt"],
-  "MY"  => ["ms"],
-  "NG"  => ["ha", "ig", "yo"], 
-  "NL"  => ["nl"],
-  "NO"  => ["no"],
-  "NP"  => ["ne"],
-  "NZ"  => ["mi"],
-  "PH"  => ["fil"],
-  "PK"  => ["sd", "ur"], 
-  "PL"  => ["pl"],
-  "RO"  => ["ro"],
-  "RS"  => ["sr"],
-  "RU"  => ["ru"],
-  "SA"  => ["ar"],
-  "SE"  => ["sv"],
-  "SI"  => ["sl"],
-  "SK"  => ["sk"],
-  "TH"  => ["th"],
-  "TR"  => ["tr"],
-  "TW"  => ["zh", "en"],
-  "TZ"  => ["sw"],
-  "UA"  => ["uk"],
-  "US"  => ["en"],
-  "UZ"  => ["uz"],
-  "VN"  => ["vi"],
-  "ZA"  => ["af", "zu"] 
-}
-
-
 LANGUAGE_SCRIPTS = {
-  "en" => ["Latn"],
-  "nl" => ["Latn"],
-  "de" => ["Latn"],
-  "fr" => ["Latn"],
-  "es" => ["Latn"],
-  "pt" => ["Latn"],
-  "it" => ["Latn"],
-
-  "he" => ["Hebr", "Latn"],   # Hebrew + Latin (translit / titles)
-  "yi" => ["Hebr"],
-
-  "ar" => ["Arab"],
-  "fa" => ["Arab"],
-  "ur" => ["Arab"],
-
-  "ru" => ["Cyrl"],
-  "uk" => ["Cyrl"],
-  "sr" => ["Cyrl", "Latn"],
-
-  "el" => ["Grek"],
-
-  "zh" => ["Hani"],
-  "ja" => ["Jpan"],
-  "ko" => ["Kore"],
-
-  "th" => ["Thai"],
-  "hi" => ["Deva"],
-  "bn" => ["Beng"],
-  "ta" => ["Taml"],
-  "te" => ["Telu"],
-  "kn" => ["Knda"],
-  "ml" => ["Mlym"],
-  "mr" => ["Deva"],
-
-  "my" => ["Mymr"],
-
-  "ka" => ["Geor"],
-  "hy" => ["Armn"],
-  "am" => ["Ethi"],
-  "ti" => ["Ethi"],
-
-  "km" => ["Khmr"],
-  "lo" => ["Laoo"],
-
-  "mn" => ["Cyrl", "Mong"],
-
-  "vi" => ["Latn"],
-  "tr" => ["Latn"],
-  "pl" => ["Latn"],
-  "hu" => ["Latn"],
-  "cs" => ["Latn"],
-  "sk" => ["Latn"],
-  "sl" => ["Latn"],
-  "sq" => ["Latn"],
-  "ro" => ["Latn"],
-  "bg" => ["Cyrl"],
-  "mk" => ["Cyrl"],
-  "kk" => ["Cyrl"],
-  "ky" => ["Cyrl"],
-  "uz" => ["Latn", "Cyrl"],
-  "sw" => ["Latn"],
-  "af" => ["Latn"],
-  "zu" => ["Latn"]
+  "af" => ["Latn"],            # Afrikaans
+  "am" => ["Ethi"],            # Amharic
+  "ar" => ["Arab"],            # Arabic
+  "as" => ["Beng"],            # Assamese
+  "be" => ["Cyrl"],            # Belarusian
+  "bg" => ["Cyrl"],            # Bulgarian
+  "bn" => ["Beng"],            # Bengali
+  "bs" => ["Latn"],            # Bosnian
+  "ca" => ["Latn"],            # Catalan
+  "cs" => ["Latn"],            # Czech
+  "cy" => ["Latn"],            # Welsh
+  "da" => ["Latn"],            # Danish
+  "de" => ["Latn"],            # German
+  "el" => ["Grek"],            # Greek
+  "en" => ["Latn"],            # English
+  "es" => ["Latn"],            # Spanish
+  "et" => ["Latn"],            # Estonian
+  "eu" => ["Latn"],            # Basque
+  "fa" => ["Arab"],            # Persian (Farsi)
+  "fi" => ["Latn"],            # Finnish
+  "fr" => ["Latn"],            # French
+  "ga" => ["Latn"],            # Irish
+  "gl" => ["Latn"],            # Galician
+  "gu" => ["Gujr"],            # Gujarati
+  "ha" => ["Latn", "Arab"],    # Hausa (Latin + Ajami)
+  "he" => ["Hebr", "Latn"],    # Hebrew (Hebrew + Latin transliteration)
+  "hi" => ["Deva"],            # Hindi
+  "hr" => ["Latn"],            # Croatian
+  "hu" => ["Latn"],            # Hungarian
+  "hy" => ["Armn"],            # Armenian
+  "ig" => ["Latn"],            # Igbo
+  "is" => ["Latn"],            # Icelandic
+  "it" => ["Latn"],            # Italian
+  "ja" => ["Jpan", "Hani"],    # Japanese (Japanese script + Kanji)
+  "ka" => ["Geor"],            # Georgian
+  "kk" => ["Cyrl"],            # Kazakh
+  "km" => ["Khmr"],            # Khmer
+  "kn" => ["Knda"],            # Kannada
+  "ko" => ["Kore"],            # Korean
+  "ky" => ["Cyrl"],            # Kyrgyz
+  "lo" => ["Laoo"],            # Lao
+  "lt" => ["Latn"],            # Lithuanian
+  "lv" => ["Latn"],            # Latvian
+  "mk" => ["Cyrl"],            # Macedonian
+  "ml" => ["Mlym"],            # Malayalam
+  "mn" => ["Cyrl", "Mong"],    # Mongolian (Cyrillic + Mongolian)
+  "mr" => ["Deva"],            # Marathi
+  "mt" => ["Latn"],            # Maltese
+  "my" => ["Mymr"],            # Burmese (Myanmar)
+  "nb" => ["Latn"],            # Norwegian Bokmål
+  "nl" => ["Latn"],            # Dutch
+  "nn" => ["Latn"],            # Norwegian Nynorsk
+  "no" => ["Latn"],            # Norwegian (generic / legacy)
+  "or" => ["Orya"],            # Odia (Oriya)
+  "pa" => ["Guru", "Arab"],    # Punjabi (Gurmukhi + Shahmukhi)
+  "pl" => ["Latn"],            # Polish
+  "pt" => ["Latn"],            # Portuguese
+  "ro" => ["Latn"],            # Romanian
+  "ru" => ["Cyrl"],            # Russian
+  "sd" => ["Arab", "Deva"],    # Sindhi (Arabic + Devanagari)
+  "sk" => ["Latn"],            # Slovak
+  "sl" => ["Latn"],            # Slovenian
+  "sq" => ["Latn"],            # Albanian
+  "sr" => ["Cyrl", "Latn"],    # Serbian (Cyrillic + Latin)
+  "sv" => ["Latn"],            # Swedish
+  "sw" => ["Latn"],            # Swahili
+  "ta" => ["Taml"],            # Tamil
+  "te" => ["Telu"],            # Telugu
+  "th" => ["Thai"],            # Thai
+  "ti" => ["Ethi"],            # Tigrinya
+  "tr" => ["Latn"],            # Turkish
+  "uk" => ["Cyrl"],            # Ukrainian
+  "ur" => ["Arab"],            # Urdu
+  "uz" => ["Latn", "Cyrl"],    # Uzbek (Latin + Cyrillic)
+  "vi" => ["Latn"],            # Vietnamese
+  "yi" => ["Hebr"],            # Yiddish
+  "yo" => ["Latn"],            # Yoruba
+  "zh" => ["Hani"],            # Chinese (Han ideographs, generic)
+  "zu" => ["Latn"]             # Zulu
 }
-
 
 def detect_language(input_data, language_code, options) 
     if Iso639[language_code].nil?
@@ -376,29 +311,61 @@ RULE_SET_LANGUAGE_HELPERS = {
         }}
     },
     rs_region_to_language_code: {
-        language_code: { "@" => lambda { |d,o| 
-            if d.nil? || d.empty?
+        language_code: { "@" => lambda { |region_code,o| 
+            if region_code.nil? || region_code.empty?
                 return "und"
             end 
 
-            lang_code = DEFAULT_LANGUAGE[d]
+            country = ISO3166::Country[region_code]
+            country.languages
+
+            lang_code = country.languages
             if lang_code.nil?
+                 pp "[rs_region_to_language_code] region_code: #{region_code} => [lang_code] MISSING ??????" 
                 return "und"
             end
+
+
+            pp "[rs_region_to_language_code] region_code: #{region_code} => [lang_code] #{lang_code}"
+
             if lang_code.size > 1 
                 out = DataCollector::Output.new
                 rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], o[:input_data], out,  {})
                 language_script = out[:detect_language_script].is_a?(Array) ? out[:detect_language_script].first : out[:detect_language_script]
                 
-                # Select the lang_code that have the same 'default' scripting as the provided input data
-                lang_code.select!{ |lc| LANGUAGE_SCRIPTS[lc].include?(language_script) }
+                # Select the lang_code that includes the same scripting as the provided input data
+                pp "language_script of the input_date #{ language_script }"
+                lang_code.select!{ |lc| 
+                    pp "CHECK for #{lc} in LANGUAGE_SCRIPTS #{ LANGUAGE_SCRIPTS[lc] }"
+                    LANGUAGE_SCRIPTS[lc].include?(language_script)
+                }
 
+
+                pp "lang_code with the same scripting #{lang_code }"
+
+                if lang_code.empty?
+                    return "und"
+                end
                 if lang_code.size != 1
-                    pp "[rs_region_to_language_code] d #{d}"
-                    pp "[rs_region_to_language_code] lang_code #{lang_code}"
-                    pp "[rs_region_to_language_code] language_script #{language_script}"
-                    pp "[rs_region_to_language_code] COULD NOT DETECT LANGUAGE"
-                    exit
+                    case region_code
+                    when "mljdfpgj"
+                        lang_code = "und"
+                    #when "ES" 
+                    #   lang_code = ["es"]
+                    #when "NO" 
+                    #   lang_code = ["no"]  
+                    #when "IN" 
+                    #   return "und"
+                    #when "ZA" 
+                    #   return "und"                         
+                    else
+
+                        pp "[rs_region_to_language_code] region_code #{region_code}"
+                        pp "[rs_region_to_language_code] lang_code #{lang_code}"
+                        pp "[rs_region_to_language_code] language_script #{language_script}"
+                        pp "[rs_region_to_language_code] COULD NOT DETECT LANGUAGE"
+                        return lang_code
+                    end
                 end
 
             end
