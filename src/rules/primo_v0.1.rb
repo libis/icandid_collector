@@ -408,9 +408,7 @@ RULE_SET_v0_1 = {
 
                 if d.size > 250
                     o[:detectedLanguage] = @icandid_utils.languageDetection("#{d}" , {language_detection_url:  o[:config][:language_detection_url]})
-                    lang = DataCollector::Output.new
-                    rules_ng.run(RULE_SET_LANGUAGE_HELPERS[:rs_detect_language_script], o[:detectedLanguage], lang, o)
-                    o[:detectedLanguage]= "#{o[:detectedLanguage]}-#{lang[:detect_language_script]}"
+                    o[:detectedLanguage]= detect_language(d, o[:detectedLanguage], o)
                 end
                 # pp d
                 if o[:contextLanguage] != o[:detectedLanguage]
