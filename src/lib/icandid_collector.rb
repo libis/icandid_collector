@@ -16,7 +16,7 @@ module IcandidCollector
   extend DataCollector::Core
   
   ADMIN_MAIL_ADDRESS = "tom.vanmechelen@kuleuven.be"
-  FROM_MAIL_ADDRESS = "icandid@libis.kuleuven.be"
+  FROM_MAIL_ADDRESS = "icandid@kuleuven.be"
   SMTP_SERVER = "smtp.kuleuven.be"
   ROOT_PATH = File.join( File.dirname(__FILE__), '../../')
   # SOURCE_FILE_NAME_PATTERN = "*.json"
