@@ -475,7 +475,8 @@ RULE_SET_v2_5 = {
                       :@id   => "twitter_verified_true",
                       :name  => "verified",
                       :value => d["verified"]
-                }]
+                    }
+                ]
             end
             u
         }}

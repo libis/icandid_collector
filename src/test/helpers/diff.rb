@@ -78,8 +78,12 @@ def verify_ingestion_consistency(output_dir, records_dir, additional_file_proces
 
   file_list = Dir.glob("#{output_dir}/*").select { |e| File.file? e }
 
+  STDERR.puts  "file_list"
+  STDERR.puts  file_list
+
   msg = ""
   file_list.each do |file|
+     STDERR.puts "file: #{file}"
     local_data = JSON.parse(File.read( file ))
     if local_data["@id"].nil?
       raise "#{file} has no @id !!!"

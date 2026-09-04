@@ -23,7 +23,7 @@ REQUEST_OPTIONS = {
     user: ES_USER,
     password: ES_PASSWORD,
     #url: "#{ENV['ES_URL']}/icandid/_doc",
-    url: "https://host.docker.internal:9200/icandid/_doc",
+    url: "https://host.docker.internal:9203/icandid/_doc",
     method: "get",
     verify_ssl: true,
     headers: { "Content-Type" => "application/json" }
@@ -264,6 +264,64 @@ class DataCollectorTest < Minitest::Test
     input_dir = source_records_dir
     output_dir = temp_directory
     file_pattern = ".*.json"
+
+    start_time = "2020-01-01"
+    
+
+    command = [
+      "ruby", parser_script,
+      "-c", config_file,
+      "-q", query_config_file,
+      "--query_id", query_id,
+      "-s", input_dir,
+      "-p", file_pattern,
+      "-u", start_time,
+      "-d", output_dir
+    ]
+
+    begin
+      stdout, stderr, status = Open3.capture3(*command)
+      STDERR.puts "STDOUT:\n#{stdout}"
+      STDERR.puts "STDERR:\n#{stderr}"
+      STDERR.puts "Exit status: #{status.exitstatus}"
+
+      # Cross-check newly generated records with previously ingested records.
+      msg = verify_ingestion_consistency(output_dir, records_dir)
+      
+      unless msg.nil? || msg.empty?
+        flunk msg
+      end
+      
+      assert status.success?, "Parser script failed: #{stderr}"
+  
+    ensure
+      # Clean up temp directory
+      if Dir.exist?(temp_directory)
+        pp "Removing temp directory: #{temp_directory}"
+        FileUtils.remove_entry(temp_directory)
+      end
+    end
+  end
+
+  def test_twitter_parser
+    pp ""
+    pp "######################################################################"
+    pp " Test parsing and rules from Twitter                                     "
+    pp "######################################################################"
+
+    test_files_directory = "/app/src/test/features/twitter/"
+    temp_directory = Dir.mktmpdir("temp", test_files_directory)
+    source_records_dir = File.join(test_files_directory, "source_records")
+    records_dir = File.join(test_files_directory, "records")
+      
+    parser_script = "/app/src/twitter_parser.rb"
+    config_file = "/app/config/twitter/config.yml"
+    query_config_file = "/app/config/twitter/queries/config.yml"
+    query_id = "twitter_query_0000007"
+    input_dir = source_records_dir
+    output_dir = temp_directory
+    file_pattern = ".*.json"
+    file_pattern = ".*90131693301805056_91211700103159808.*"
 
     start_time = "2020-01-01"
     

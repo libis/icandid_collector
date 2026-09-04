@@ -81,3 +81,9 @@ VERSION_TAG
 
 ## v3.1_20260420
 => language (script ) detection for TMDB
+
+## v3.1_20260427
+=> parser for old TMDB downloads
+
+## v3.1_20260519
+=> Alma MARC21 Parser

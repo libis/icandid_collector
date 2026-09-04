@@ -23,7 +23,6 @@ def process_recent_queries(icandid_config)
             start_processing = Date.today
             @logger.info ("Download records for query: #{ query[:query][:id] } [ #{ query[:query][:name] } ]")
             icandid_config.config[:query] = query    
-            
             if query[:recent_records].nil?
                 next;
             end
@@ -211,8 +210,8 @@ begin
     start_process  = Time.now.strftime("%Y-%m-%dT%H:%M:%SZ")
     @logger.info ("Download for queries in : #{File.join( icandid_config.query_config.path , icandid_config.query_config.name) }")
 
-    #process_recent_queries(icandid_config)
-    process_backlog_queries(icandid_config)   
+    process_recent_queries(icandid_config)
+    #process_backlog_queries(icandid_config)   
 
 rescue => exception
     @logger.error("Error : #{ exception } ")

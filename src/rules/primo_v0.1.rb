@@ -265,7 +265,7 @@ RULE_SET_v0_1 = {
         }},
         name: '$.data.title',
         materialExtent: '$.data.format',
-        datePublished: {'$.data.creationdate' =>  lambda { |d,o| 
+        _datePublished: {'$.data.creationdate' =>  lambda { |d,o| 
             if dates = /^(\[|-)*(?<year>\d{4})(\]|-|\?|\/)*$/.match(d)
                 raw_date = "#{dates[:year]}0101"
             elsif dates = /^(\[)*(?<year>\d{4})(\]|-|\?|\/)(?<month>\d{2})(\]|-|\?|\/)*$/.match(d)
@@ -285,7 +285,7 @@ RULE_SET_v0_1 = {
             end
             Date.strptime(raw_date, '%Y%m%d').strftime('%Y-%m-%d')
         }},
-        _datePublished: '$.data.creationdate',
+        datePublished: '$.data.creationdate',
         datePublished_time_frame:  {'$.data.creationdate' =>  lambda { |d,o| 
             
             start_date = nil

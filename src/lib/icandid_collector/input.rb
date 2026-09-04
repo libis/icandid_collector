@@ -280,7 +280,7 @@ module IcandidCollector
             parse_data( file: source_file, options:  @parsing_options, rule_set: icandid_config.config[:rule_set].constantize )
             finish = Time.now
             diff = finish - start
-            @logger.info ("Time tp parse file: #{ diff } seconds")
+            @logger.info ("Time to parse file: #{ diff } seconds")
           rescue DataCollector::InputError => e
             @logger.error ("Error parsing file #{source_file} at index #{index}")
             raise e.message
@@ -292,7 +292,6 @@ module IcandidCollector
           # @logger.debug ("process data output.data #{ output.data } ")
 
           output.data[:records].each do | data |
-
             unless data.nil?
               data = data.with_indifferent_access
               
@@ -310,6 +309,7 @@ module IcandidCollector
               one_record_output.clear
             end
           end
+
           @logger.warn ("nbr_created_records #{ icandid_config.config[:nbr_created_records] }")  
           if source_file =~ /\/new\//
             @logger.debug ("Move file to processed-path")
